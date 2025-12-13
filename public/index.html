@@ -1,277 +1,452 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Spin & Win</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    :root {
-      --bg: #0f1724;
-      --accent: #60a5fa;
-      --muted: #9aa6c0;
-    }
-    html,body {
-      height:100%;
-      margin:0;
-      font-family: Inter, system-ui, sans-serif;
-      background: linear-gradient(180deg,#071029 0%, #0f1724 100%);
-      color: #e6eef8;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-    }
-    .container {
-      width:900px;
-      max-width:95%;
-      background: rgba(255,255,255,0.03);
-      border-radius:16px;
-      padding:24px;
-      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
-      display:grid;
-      grid-template-columns: 360px 1fr;
-      gap:24px;
-    }
-    h1 {
-      margin:0 0 12px 0;
-      font-size:24px;
-      font-weight:700;
-    }
-    label {
-      display:block;
-      font-size:14px;
-      color:var(--muted);
-      margin-bottom:6px;
-    }
-    input[type="text"] {
-      width:100%;
-      padding:10px 12px;
-      border-radius:8px;
-      border:none;
-      background: rgba(255,255,255,0.05);
-      color:white;
-      font-size:16px;
-    }
-    button {
-      width:100%;
-      margin-top:16px;
-      padding:12px 16px;
-      border-radius:10px;
-      border:none;
-      cursor:pointer;
-      font-size:16px;
-      font-weight:600;
-      background: linear-gradient(90deg,var(--accent),#3b82f6);
-      color: #001;
-    }
-    button:disabled {
-      opacity:0.5;
-      cursor:not-allowed;
-    }
-    canvas { background: transparent; border-radius:999px; }
-    .small { font-size:13px; color:var(--muted); margin-top:6px; }
-    #logMsg { color:#86efac; margin-top:8px; font-size:14px; }
-    @media(max-width:850px){
-      .container { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="utf-8" />
+<title>Spin & Win</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+
+<style>
+/* -------------------------------------------------
+   GLOBAL + BACKGROUND ANIMATION
+--------------------------------------------------*/
+html, body {
+  margin:0;
+  height:100%;
+  overflow:hidden;
+  font-family: Inter, sans-serif;
+  background: radial-gradient(circle at top, #0d1b3d, #070b16 70%);
+  animation:bgMove 16s infinite alternate ease-in-out;
+  color:white;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+@keyframes bgMove {
+  0% { background-position: 0px 0px; filter: hue-rotate(0deg); }
+  100% { background-position: 0px 400px; filter: hue-rotate(25deg); }
+}
+
+/* -------------------------------------------------
+   CONTAINER
+--------------------------------------------------*/
+.container {
+  width:900px;
+  max-width:95%;
+  background:rgba(255,255,255,0.05);
+  border-radius:16px;
+  padding:24px;
+  backdrop-filter: blur(8px);
+  box-shadow:0 10px 40px rgba(0,0,0,0.6);
+  display:grid;
+  grid-template-columns:360px 1fr;
+  gap:24px;
+  z-index:10;
+  position:relative;
+}
+
+/* -------------------------------------------------
+   INPUT + BUTTON
+--------------------------------------------------*/
+label { display:block; font-size:14px; opacity:0.8; margin-bottom:6px; }
+input {
+  width:100%; padding:10px 12px; border-radius:8px; border:none;
+  background:rgba(255,255,255,0.1); color:white; font-size:16px;
+}
+button {
+  width:100%; margin-top:16px; padding:12px;
+  border:none; border-radius:10px;
+  background:linear-gradient(90deg,#ff4f4f,#ff2f2f);
+  color:white; font-size:18px; font-weight:600;
+  cursor:pointer; transition:0.2s;
+}
+button:disabled { opacity:0.5; cursor:not-allowed; }
+
+/* Button shake when limit reached */
+@keyframes shake {
+  0% { transform:translateX(0); }
+  25% { transform:translateX(-6px); }
+  50% { transform:translateX(6px); }
+  75% { transform:translateX(-6px); }
+  100% { transform:translateX(0); }
+}
+.shake { animation:shake 0.4s ease; }
+
+/* Red glowing button when exhausted */
+.exhausted {
+  box-shadow:0 0 20px #ff0000;
+}
+
+/* -------------------------------------------------
+   POINTER (GLOWING)
+--------------------------------------------------*/
+.pointer {
+  width:0; height:0;
+  border-left:15px solid transparent;
+  border-right:15px solid transparent;
+  border-bottom:30px solid #fff;
+  margin:10px auto 0;
+  position:relative;
+  animation:pointerGlow 1.4s infinite alternate;
+}
+@keyframes pointerGlow {
+  0% { filter: drop-shadow(0 0 4px #ff4f4f); }
+  100% { filter: drop-shadow(0 0 12px #ff2f2f); }
+}
+
+/* -------------------------------------------------
+   POPUP MODAL
+--------------------------------------------------*/
+#limitModal {
+  position:fixed;
+  top:0; left:0; width:100%; height:100%;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(0,0,0,0.6);
+  backdrop-filter:blur(4px);
+  z-index:999;
+  opacity:0; pointer-events:none;
+  transition:0.3s;
+}
+#limitModal.active {
+  opacity:1; pointer-events:auto;
+}
+.modal-box {
+  background:#200; padding:30px 40px;
+  border-radius:12px; text-align:center;
+  box-shadow:0 0 25px #f00;
+  animation:modalPop 0.35s ease-out;
+}
+@keyframes modalPop {
+  0% { transform:scale(0.6); opacity:0; }
+  100% { transform:scale(1); opacity:1; }
+}
+.modal-box h2 {
+  font-size:26px;
+  margin:0 0 10px;
+  color:#ff4f4f;
+}
+
+/* -------------------------------------------------
+   CONFETTI CANVAS
+--------------------------------------------------*/
+#confettiCanvas {
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  pointer-events:none;
+  z-index:5;
+}
+
+/* -------------------------------------------------
+   RESPONSIVE
+--------------------------------------------------*/
+@media(max-width:850px){
+  .container { grid-template-columns:1fr; }
+}
+</style>
 </head>
 
 <body>
-  <div class="container">
 
-    <!-- LEFT PANEL -->
-    <div>
-      <h1>Spin & Win 🎉</h1>
+<!-- CONFETTI CANVAS -->
+<canvas id="confettiCanvas"></canvas>
 
-      <label>Your Name</label>
-      <input id="participantName" placeholder="Enter your name" />
-
-      <button id="spinBtn" disabled>Spin the Wheel</button>
-
-      <div id="lastResult" class="small"></div>
-      <div id="logMsg"></div>
-    </div>
-
-    <!-- RIGHT PANEL: WHEEL -->
-    <div style="text-align:center;">
-      <canvas id="wheelCanvas" width="420" height="420"></canvas>
-      <div style="display:flex;justify-content:center;margin-top:10px;">
-        <div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:20px solid #fff;"></div>
-      </div>
-    </div>
-
+<!-- LIMIT POPUP -->
+<div id="limitModal">
+  <div class="modal-box">
+    <h2>Oops! Spin Limit Exhausted</h2>
+    <p>You’ve reached your 3 spins for today. Try again tomorrow!</p>
+    <button onclick="closeModal()">OK</button>
   </div>
+</div>
+
+<!-- MAIN UI -->
+<div class="container">
+
+  <!-- LEFT SIDE -->
+  <div>
+    <h1>Spin & Win 🎉</h1>
+
+    <label>Your Name</label>
+    <input id="participantName" placeholder="Enter your name" />
+
+    <button id="spinBtn" disabled>Spin the Wheel</button>
+
+    <div id="lastResult" style="margin-top:14px; opacity:0.8;"></div>
+    <div id="logMsg" style="margin-top:8px; color:#98ffae;"></div>
+  </div>
+
+  <!-- RIGHT SIDE -->
+  <div style="text-align:center;">
+    <canvas id="wheelCanvas" width="420" height="420"></canvas>
+    <div class="pointer"></div>
+  </div>
+
+</div>
 
 <script>
 (() => {
 
-  // ⭐⭐⭐ LOCKED PRIZES — EDIT THIS LIST ⭐⭐⭐
-  const PRIZES = [
-    "Prize A",
-    "Prize B",
-    "Prize C",
-    "Prize D"
-  ];
-  // ⭐⭐⭐ END EDIT ⭐⭐⭐
+/* ---------------------------------------------------------------
+   PRIZES (Locked)
+---------------------------------------------------------------*/
+const PRIZES = ["Prize A", "Prize B", "Prize C", "Prize D"];
 
+/* ---------------------------------------------------------------
+   GOOGLE FORM SETTINGS
+---------------------------------------------------------------*/
+const GOOGLE_FORM_ACTION =
+  "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
+const FIELD_IDS = {
+  name: "entry.2073447998",
+  result: "entry.147622954",
+  timestamp: "entry.1151054090"
+};
 
+/* ---------------------------------------------------------------
+   ELEMENTS
+---------------------------------------------------------------*/
+const wheelCanvas = document.getElementById("wheelCanvas");
+const ctx = wheelCanvas.getContext("2d");
+const spinBtn = document.getElementById("spinBtn");
+const nameInput = document.getElementById("participantName");
+const lastResult = document.getElementById("lastResult");
+const logMsg = document.getElementById("logMsg");
+const confettiCanvas = document.getElementById("confettiCanvas");
+const confCtx = confettiCanvas.getContext("2d");
 
-  // --- Google Form Settings ---
-  const GOOGLE_FORM_ACTION =
-    "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
+/* ---------------------------------------------------------------
+   SPIN LIMIT SYSTEM — 3 spins per browser per day
+---------------------------------------------------------------*/
+function getToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
 
-  const FIELD_IDS = {
-    name: "entry.2073447998",
-    result: "entry.147622954",
-    timestamp: "entry.1151054090"
-  };
+function loadSpinData() {
+  const savedDate = localStorage.getItem("spinDate");
+  const today = getToday();
 
-
-
-  // --- ELEMENTS ---
-  const canvas = document.getElementById("wheelCanvas");
-  const ctx = canvas.getContext("2d");
-  const nameInput = document.getElementById("participantName");
-  const spinBtn = document.getElementById("spinBtn");
-  const lastResult = document.getElementById("lastResult");
-  const logMsg = document.getElementById("logMsg");
-
-
-  // --- WHEEL DATA ---
-  let options = PRIZES.slice();
-  let currentRotation = 0;
-  let isSpinning = false;
-
-
-
-  // --- DRAW WHEEL ---
-  function drawWheel() {
-    const size = canvas.width;
-    const cx = size/2;
-    const cy = size/2;
-    const r = cx - 10;
-
-    ctx.clearRect(0,0,size,size);
-
-    const slice = (2*Math.PI) / options.length;
-
-    for (let i = 0; i < options.length; i++) {
-      const start = i * slice;
-      const end = start + slice;
-
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.arc(cx, cy, r, start + currentRotation, end + currentRotation);
-      ctx.closePath();
-      ctx.fillStyle = `hsl(${(i/options.length)*360} 70% 55%)`;
-      ctx.fill();
-
-      // Text
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate((start + end) / 2 + currentRotation);
-      ctx.textAlign = "right";
-      ctx.fillStyle = "white";
-      ctx.font = "bold 16px sans-serif";
-      ctx.fillText(options[i], r - 15, 5);
-      ctx.restore();
-    }
+  if (savedDate !== today) {
+    localStorage.setItem("spinDate", today);
+    localStorage.setItem("spinsToday", 0);
+    return 0;
   }
+  return parseInt(localStorage.getItem("spinsToday") || 0);
+}
 
+function incrementSpin() {
+  let count = loadSpinData();
+  count++;
+  localStorage.setItem("spinsToday", count);
+  return count;
+}
 
+function showSpinLimitPopup() {
+  spinBtn.classList.add("shake", "exhausted");
+  document.getElementById("limitModal").classList.add("active");
+  setTimeout(() => spinBtn.classList.remove("shake"), 600);
+}
 
-  // --- NAME CHECK ---
-  nameInput.addEventListener("input", () => {
-    spinBtn.disabled = nameInput.value.trim().length === 0;
+window.closeModal = function() {
+  document.getElementById("limitModal").classList.remove("active");
+};
+
+/* ---------------------------------------------------------------
+   CONFETTI SYSTEM
+---------------------------------------------------------------*/
+let confetti = [];
+function resizeConfetti() {
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeConfetti);
+resizeConfetti();
+
+function launchConfetti() {
+  confetti = [];
+  for (let i = 0; i < 150; i++) {
+    confetti.push({
+      x: Math.random() * confettiCanvas.width,
+      y: Math.random() * -confettiCanvas.height,
+      size: Math.random() * 8 + 3,
+      color: `hsl(${Math.random()*360}, 75%, 60%)`,
+      speed: Math.random() * 3 + 2,
+      rotation: Math.random()*360
+    });
+  }
+  animateConfetti();
+}
+
+function animateConfetti() {
+  confCtx.clearRect(0,0,confettiCanvas.width,confettiCanvas.height);
+  confetti.forEach(c => {
+    c.y += c.speed;
+    c.rotation += 4;
+    if (c.y < confettiCanvas.height) {
+      confCtx.save();
+      confCtx.translate(c.x, c.y);
+      confCtx.rotate(c.rotation * Math.PI/180);
+      confCtx.fillStyle = c.color;
+      confCtx.fillRect(-c.size/2, -c.size/2, c.size, c.size);
+      confCtx.restore();
+    }
   });
+  requestAnimationFrame(animateConfetti);
+}
 
+/* ---------------------------------------------------------------
+   SOUND SYSTEM (procedural)
+---------------------------------------------------------------*/
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+function clickSound() {
+  let o = audioCtx.createOscillator();
+  let g = audioCtx.createGain();
+  o.frequency.value = 900;
+  g.gain.value = 0.15;
+  o.connect(g).connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + 0.04);
+}
 
-  // --- SPIN LOGIC ---
-  function angleToIndex(angle) {
-    const normalized = ((-angle + Math.PI/2) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
-    const slice = (2*Math.PI) / options.length;
-    return Math.floor(normalized / slice) % options.length;
+function tickingStart() {
+  window.__tick = setInterval(() => clickSound(), 100);
+}
+function tickingStop() {
+  clearInterval(window.__tick);
+}
+
+function popSound() {
+  let o = audioCtx.createOscillator();
+  let g = audioCtx.createGain();
+  o.frequency.setValueAtTime(300, audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.2);
+  g.gain.setValueAtTime(0.4, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+  o.connect(g).connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + 0.2);
+}
+
+/* ---------------------------------------------------------------
+   DRAW WHEEL
+---------------------------------------------------------------*/
+let currentRotation = 0;
+const sliceAngle = (2*Math.PI) / PRIZES.length;
+
+function drawWheel() {
+  const size = wheelCanvas.width;
+  const cx = size/2, cy = size/2;
+  const r = cx - 10;
+
+  ctx.clearRect(0,0,size,size);
+
+  for (let i = 0; i < PRIZES.length; i++) {
+    const start = i * sliceAngle;
+    const end = start + sliceAngle;
+
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,start+currentRotation,end+currentRotation);
+    ctx.closePath();
+    ctx.fillStyle = `hsl(${(i/PRIZES.length)*360}, 70%, 55%)`;
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(cx,cy);
+    ctx.rotate((start+end)/2 + currentRotation);
+    ctx.textAlign="right";
+    ctx.fillStyle="white";
+    ctx.font="bold 16px sans-serif";
+    ctx.fillText(PRIZES[i], r-25, 5);
+    ctx.restore();
+  }
+}
+
+function angleToIndex(angle) {
+  const normalized = ((-angle + Math.PI/2) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+  return Math.floor(normalized / sliceAngle) % PRIZES.length;
+}
+
+/* ---------------------------------------------------------------
+   SPIN WHEEL
+---------------------------------------------------------------*/
+function spinWheel() {
+  const spins = loadSpinData();
+
+  if (spins >= 3) {
+    showSpinLimitPopup();
+    return;
   }
 
-  function spinWheel() {
-    if (isSpinning) return;
-
-    const name = nameInput.value.trim();
-    if (!name) {
-      alert("Please enter your name.");
-      return;
-    }
-
-    isSpinning = true;
-    spinBtn.disabled = true;
-    logMsg.textContent = "";
-
-    const extra = Math.random() * 8 + 6; // spin power
-    const randomOffset = Math.random() * 2 * Math.PI;
-    const targetRotation = currentRotation + extra * 2*Math.PI + randomOffset;
-
-    const duration = 3200;
-    const start = performance.now();
-    const startRotation = currentRotation;
-
-    function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
-
-    function frame(now){
-      const t = Math.min(1, (now - start) / duration);
-      currentRotation = startRotation + (targetRotation - startRotation) * easeOutCubic(t);
-      drawWheel();
-      if (t < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        isSpinning = false;
-        const index = angleToIndex(currentRotation);
-        const result = options[index];
-
-        lastResult.innerHTML = `<strong>${result}</strong> — won by ${name}`;
-        sendResult(name, result);
-        spinBtn.disabled = false;
-      }
-    }
-    requestAnimationFrame(frame);
+  const name = nameInput.value.trim();
+  if (!name) {
+    alert("Please enter your name.");
+    return;
   }
 
+  audioCtx.resume();
+  clickSound();
+  tickingStart();
 
+  spinBtn.disabled = true;
 
-  // --- SEND TO GOOGLE FORM ---
-  async function sendResult(name, result) {
-    try {
-      logMsg.textContent = "Submitting result...";
+  let extra = Math.random()*8 + 6;
+  let randomOffset = Math.random()*2*Math.PI;
+  let targetRotation = currentRotation + extra*2*Math.PI + randomOffset;
 
-      const form = new FormData();
-      form.append(FIELD_IDS.name, name);
-      form.append(FIELD_IDS.result, result);
-      form.append(FIELD_IDS.timestamp, new Date().toISOString());
-      form.append("entry_options_backup", options.join("\n"));
+  let duration = 3500;
+  let start = performance.now();
+  let startRotation = currentRotation;
 
-      await fetch(GOOGLE_FORM_ACTION, {
-        method: "POST",
-        mode: "no-cors",
-        body: form
-      });
+  function ease(t){ return 1 - Math.pow(1-t,3); }
 
-      logMsg.textContent = "Logged ✔";
-    }
-    catch (e) {
-      logMsg.textContent = "Failed to submit.";
+  function frame(now){
+    const t = Math.min(1,(now-start)/duration);
+    currentRotation = startRotation + (targetRotation-startRotation)*ease(t);
+    drawWheel();
+
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      tickingStop();
+      const result = PRIZES[angleToIndex(currentRotation)];
+      lastResult.innerHTML = `<strong>${result}</strong> — won by ${name}`;
+      popSound();
+      launchConfetti();
+      incrementSpin();
+      sendResult(name,result);
+      spinBtn.disabled = false;
     }
   }
+  requestAnimationFrame(frame);
+}
 
+/* ---------------------------------------------------------------
+   LOG TO GOOGLE SHEET
+---------------------------------------------------------------*/
+async function sendResult(name, result) {
+  logMsg.textContent = "Logging...";
+  const form = new FormData();
+  form.append(FIELD_IDS.name, name);
+  form.append(FIELD_IDS.result, result);
+  form.append(FIELD_IDS.timestamp, new Date().toISOString());
+  form.append("entry_options_backup", PRIZES.join("\n"));
+  await fetch(GOOGLE_FORM_ACTION, { method:"POST", mode:"no-cors", body:form });
+  logMsg.textContent = "Logged ✔";
+}
 
+/* ---------------------------------------------------------------
+   INITIALIZE
+---------------------------------------------------------------*/
+nameInput.addEventListener("input", () => {
+  spinBtn.disabled = nameInput.value.trim() === "";
+});
 
-  // INIT
-  spinBtn.addEventListener("click", spinWheel);
-  drawWheel();
+spinBtn.addEventListener("click", spinWheel);
+
+drawWheel();
 
 })();
 </script>
 
 </body>
 </html>
-
