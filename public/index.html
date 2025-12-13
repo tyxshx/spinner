@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Shared Spinner Wheel — enter name & spin</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    :root {
+      --bg: #0f1724;
+      --card: #0b1220;
+      --accent: #60a5fa;
+      --muted: #9aa6c0;
+    }
+    html,body {
+      height:100%;
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      background: linear-gradient(180deg,#071029 0%, #0f1724 100%);
+      color: #e6eef8;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+    }
+    .container {
+      width:960px;
+      max-width:95%;
+      background: rgba(255,255,255,0.03);
+      border-radius:16px;
+      padding:20px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+      display:grid;
+      grid-template-columns: 420px 1fr;
+      gap:20px;
+    }
+    h1 { margin:0 0 8px 0; font-size:20px;}
+    label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px;}
+    input[type="text"], textarea {
+      width:100%;
+      padding:8px 10px;
+      border-radius:8px;
+      border: none;
+      background: rgba(255,255,255,0.02);
+      color: inherit;
+      resize:vertical;
+    }
+    textarea { min-height:100px; }
+    .wheel-wrap {
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      gap:12px;
+    }
+    canvas { background: transparent; border-radius:999px; }
+    .controls { width:100%; display:flex; gap:8px; align-items:center; margin-top:6px; }
+    button {
+      padding:10px 14px;
+      border-radius:10px;
+      border:none;
+      cursor:pointer;
+      font-weight:600;
+      background: linear-gradient(90deg,var(--accent),#3b82f6);
+      color: #002;
+    }
+    button:disabled { opacity:0.45; cursor:not-allowed; }
+    .log-success { color: #86efac; font-size:13px;}
+    .small { font-size:13px; color:var(--muted); margin-top:6px; }
+    .footer { font-size:12px; color:var(--muted); margin-top:12px; }
+    @media (max-width:880px){
+      .container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" role="main">
+    <div>
+      <h1>Participant Spin — enter name then spin</h1>
+
+      <label for="participantName">Your name (required)</label>
+      <input id="participantName" placeholder="Type your full name" autocomplete="name" />
+
+      <label for="options">Wheel options (one per line)</label>
+      <textarea id="options" placeholder="e.g. Prize A\nPrize B\nPrize C">Prize A
+Prize B
+Prize C
+Prize D</textarea>
+
+      <div class="small">Tip: paste a list of names or prize options (one per line). The wheel will show those slices.</div>
+
+      <div style="margin-top:12px;">
+        <label>Spin settings</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <label style="font-size:13px;color:var(--muted);">Spin strength:
+            <input id="spinStrength" type="range" min="1" max="10" value="6" style="vertical-align:middle;margin-left:8px;">
+          </label>
+          <label style="font-size:13px;color:var(--muted);margin-left:auto;">
+            <input type="checkbox" id="autoLog" checked>
+            Auto-log to Google Form
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button id="loadBtn">Load wheel</button>
+        <button id="spinBtn" disabled>Spin</button>
+        <button id="clearBtn">Clear</button>
+      </div>
+
+      <div class="footer">
+        <div id="status" class="small">Not loaded</div>
+        <div id="lastResult" class="small" style="margin-top:8px;"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="wheel-wrap" aria-hidden="false">
+        <canvas id="wheelCanvas" width="420" height="420" role="img" aria-label="Spinner wheel"></canvas>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:18px solid #f8fafc;transform:translateY(-6px)"></div>
+          <div style="font-size:13px;color:var(--muted);">Pointer</div>
+        </div>
+        <div class="small">Click <strong>Load wheel</strong> after editing options. Then enter your name and click <strong>Spin</strong>.</div>
+        <div id="logMsg" class="log-success"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // Your Google Form POST URL (correct)
+  const GOOGLE_FORM_ACTION =
+    "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
+
+  // Your Google Form field mappings (correct)
+  const FIELD_IDS = {
+    name: "entry.2073447998",
+    result: "entry.147622954",
+    timestamp: "entry.1151054090"
+  };
+
+  const canvas = document.getElementById("wheelCanvas");
+  const ctx = canvas.getContext("2d");
+  const nameInput = document.getElementById("participantName");
+  const optionsInput = document.getElementById("options");
+  const loadBtn = document.getElementById("loadBtn");
+  const spinBtn = document.getElementById("spinBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const status = document.getElementById("status");
+  const logMsg = document.getElementById("logMsg");
+  const spinStrength = document.getElementById("spinStrength");
+  const autoLog = document.getElementById("autoLog");
+  const lastResult = document.getElementById("lastResult");
+
+  let options = [];
+  let angles = [];
+  let currentRotation = 0;
+  let isSpinning = false;
+
+  function parseOptions() {
+    options = optionsInput.value.split("\n").map(s=>s.trim()).filter(Boolean);
+    if (options.length === 0) {
+      options = ["Empty"];
+    }
+  }
+
+  function drawWheel() {
+    const size = Math.min(canvas.width, canvas.height);
+    const cx = canvas.width/2;
+    const cy = canvas.height/2;
+    const r = (size/2) - 8;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    const slice = 2*Math.PI / options.length;
+    angles = [];
+    for (let i=0;i<options.length;i++) {
+      const start = i * slice;
+      const end = start + slice;
+      angles.push({start,end});
+      const hue = Math.round((i/options.length)*360);
+      ctx.beginPath();
+      ctx.moveTo(cx,cy);
+      ctx.arc(cx,cy,r, start + currentRotation, end + currentRotation);
+      ctx.closePath();
+      ctx.fillStyle = `hsl(${hue}deg 70% 50% / 0.95)`;
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      const mid = (start + end)/2 + currentRotation;
+      ctx.rotate(mid);
+      ctx.textAlign = "right";
+      ctx.fillStyle = "rgba(255,255,255,0.95)";
+      ctx.font = "bold 15px system-ui, sans-serif";
+      ctx.fillText(options[i], r - 12, 6);
+      ctx.restore();
+    }
+
+    ctx.beginPath();
+    ctx.arc(cx,cy,40,0,Math.PI*2);
+    ctx.fillStyle = "#071226";
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.stroke();
+  }
+
+  function loadWheel() {
+    parseOptions();
+    currentRotation = 0;
+    drawWheel();
+    status.textContent = `Loaded ${options.length} slices.`;
+    spinBtn.disabled = false;
+    logMsg.textContent = "";
+  }
+
+  function angleToIndex(finalAngle) {
+    const normalized = ((-finalAngle + Math.PI/2) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+    const slice = (2*Math.PI) / options.length;
+    return Math.floor(normalized / slice) % options.length;
+  }
+
+  function doSpin() {
+    if (isSpinning) return;
+    const name = nameInput.value.trim();
+    if (!name) {
+      alert("Please enter your name before spinning.");
+      nameInput.focus();
+      return;
+    }
+    if (options.length === 0) parseOptions();
+
+    isSpinning = true;
+    spinBtn.disabled = true;
+    loadBtn.disabled = true;
+    clearBtn.disabled = true;
+    logMsg.textContent = "";
+
+    const strength = Number(spinStrength.value) || 5;
+    const extra = (Math.random() * (2 + strength)) + (3 + strength);
+    const randomOffset = Math.random() * 2*Math.PI;
+    const targetRotation = currentRotation + extra * 2*Math.PI + randomOffset;
+
+    const duration = 2500 + (strength*200);
+    const start = performance.now();
+    const startRotation = currentRotation;
+
+    function easeOutCubic(t) { return 1 - Math.pow(1-t, 3); }
+
+    function frame(now) {
+      const elapsed = now - start;
+      const t = Math.min(1, elapsed / duration);
+      const eased = easeOutCubic(t);
+      currentRotation = startRotation + (targetRotation - startRotation) * eased;
+      drawWheel();
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        isSpinning = false;
+        const idx = angleToIndex(currentRotation);
+        const result = options[idx];
+        status.textContent = `Selected: ${result}`;
+        lastResult.innerHTML = `<strong>${result}</strong> — by ${name}`;
+        if (autoLog.checked) {
+          sendResult(name, result, options.join("\n"));
+        } else {
+          logMsg.textContent = "Auto-log disabled.";
+        }
+        loadBtn.disabled = false;
+        clearBtn.disabled = false;
+        spinBtn.disabled = false;
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  async function sendResult(name, result, allOptions) {
+    try {
+      logMsg.textContent = "Logging to Google Form...";
+
+      const form = new FormData();
+      form.append(FIELD_IDS.name, name);
+      form.append(FIELD_IDS.result, result);
+      form.append(FIELD_IDS.timestamp, new Date().toISOString());
+      form.append("entry_options_backup", allOptions);
+
+      await fetch(GOOGLE_FORM_ACTION, {
+        method: "POST",
+        mode: "no-cors",
+        body: form
+      });
+
+      logMsg.textContent = "Logged ✔";
+    } catch (err) {
+      console.error("sendResult err:", err);
+      logMsg.textContent = "Failed to log";
+    }
+  }
+
+  loadBtn.addEventListener("click", loadWheel);
+  spinBtn.addEventListener("click", doSpin);
+  clearBtn.addEventListener("click", () => {
+    optionsInput.value = "";
+    options = [];
+    drawWheel();
+    status.textContent = "Cleared";
+    spinBtn.disabled = true;
+  });
+
+  nameInput.addEventListener("input", () => {
+    spinBtn.disabled = !nameInput.value.trim() || options.length === 0;
+  });
+
+  parseOptions();
+  drawWheel();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "spinner-wheel",
+  "version": "1.0.0",
+  "description": "Shared spinner wheel — logs results to Google Sheets",
+  "main": "index.html",
+  "scripts": {
+    "start": "echo 'Static site — deploy with Vercel'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
