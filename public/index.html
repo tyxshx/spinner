@@ -166,7 +166,7 @@ button:disabled { opacity:0.5; cursor:not-allowed; }
   <div>
     <h1>Spin & Win 🎉</h1>
 
-    <label>Your Name (Required) </label>
+    <label>Your Name</label>
     <input id="participantName" placeholder="Enter your name" />
 
     <button id="spinBtn" disabled>Spin the Wheel</button>
@@ -187,9 +187,15 @@ button:disabled { opacity:0.5; cursor:not-allowed; }
 (() => {
 
 /* ---------------------------------------------------------------
-   PRIZES (Locked)
+   PRIZES (A → Z)
 ---------------------------------------------------------------*/
-const PRIZES = ["Prize A", "Prize B", "Prize C", "Prize D", "Prize E", "Prize F", "Prize G", "Prize H", "Prize I", "Prize J", "Prize K", "Prize L", "Prize M", "Prize N" ];
+const PRIZES = [
+  "Prize A", "Prize B", "Prize C", "Prize D", "Prize E", "Prize F",
+  "Prize G", "Prize H", "Prize I", "Prize J", "Prize K", "Prize L",
+  "Prize M", "Prize N", "Prize O", "Prize P", "Prize Q", "Prize R",
+  "Prize S", "Prize T", "Prize U", "Prize V", "Prize W", "Prize X",
+  "Prize Y", "Prize Z"
+];
 
 /* ---------------------------------------------------------------
    GOOGLE FORM SETTINGS
@@ -215,7 +221,7 @@ const confettiCanvas = document.getElementById("confettiCanvas");
 const confCtx = confettiCanvas.getContext("2d");
 
 /* ---------------------------------------------------------------
-   SPIN LIMIT SYSTEM — 3 spins per browser per day
+   SPIN LIMIT SYSTEM — 3 spins per browser/day
 ---------------------------------------------------------------*/
 function getToday() {
   const d = new Date();
@@ -252,7 +258,7 @@ window.closeModal = function() {
 };
 
 /* ---------------------------------------------------------------
-   CONFETTI SYSTEM
+   CONFETTI EFFECT
 ---------------------------------------------------------------*/
 let confetti = [];
 function resizeConfetti() {
@@ -264,13 +270,13 @@ resizeConfetti();
 
 function launchConfetti() {
   confetti = [];
-  for (let i = 0; i < 150; i++) {
+  for (let i = 0; i < 200; i++) {
     confetti.push({
-      x: Math.random() * confettiCanvas.width,
-      y: Math.random() * -confettiCanvas.height,
-      size: Math.random() * 8 + 3,
+      x: Math.random()*confettiCanvas.width,
+      y: Math.random()*-confettiCanvas.height,
+      size: Math.random()*8+3,
       color: `hsl(${Math.random()*360}, 75%, 60%)`,
-      speed: Math.random() * 3 + 2,
+      speed: Math.random()*3+2,
       rotation: Math.random()*360
     });
   }
@@ -282,12 +288,12 @@ function animateConfetti() {
   confetti.forEach(c => {
     c.y += c.speed;
     c.rotation += 4;
-    if (c.y < confettiCanvas.height) {
+    if(c.y < confettiCanvas.height){
       confCtx.save();
-      confCtx.translate(c.x, c.y);
-      confCtx.rotate(c.rotation * Math.PI/180);
+      confCtx.translate(c.x,c.y);
+      confCtx.rotate(c.rotation*Math.PI/180);
       confCtx.fillStyle = c.color;
-      confCtx.fillRect(-c.size/2, -c.size/2, c.size, c.size);
+      confCtx.fillRect(-c.size/2,-c.size/2,c.size,c.size);
       confCtx.restore();
     }
   });
@@ -295,7 +301,7 @@ function animateConfetti() {
 }
 
 /* ---------------------------------------------------------------
-   SOUND SYSTEM (procedural)
+   SOUND SYSTEM
 ---------------------------------------------------------------*/
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -319,59 +325,55 @@ function popSound() {
   let o = audioCtx.createOscillator();
   let g = audioCtx.createGain();
   o.frequency.setValueAtTime(300, audioCtx.currentTime);
-  o.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.2);
-  g.gain.setValueAtTime(0.4, audioCtx.currentTime);
-  g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+  o.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime+0.2);
+  g.gain.setValueAtTime(0.4,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.2);
   o.connect(g).connect(audioCtx.destination);
-  o.start(); o.stop(audioCtx.currentTime + 0.2);
+  o.start(); o.stop(audioCtx.currentTime+0.2);
 }
 
 /* ---------------------------------------------------------------
-   DRAW WHEEL
+   WHEEL DRAWING
 ---------------------------------------------------------------*/
 let currentRotation = 0;
 const sliceAngle = (2*Math.PI) / PRIZES.length;
 
 function drawWheel() {
   const size = wheelCanvas.width;
-  const cx = size/2, cy = size/2;
-  const r = cx - 10;
-
+  const cx=size/2, cy=size/2, r=cx-10;
   ctx.clearRect(0,0,size,size);
 
-  for (let i = 0; i < PRIZES.length; i++) {
-    const start = i * sliceAngle;
-    const end = start + sliceAngle;
+  for(let i=0;i<PRIZES.length;i++){
+    const start=i*sliceAngle, end=start+sliceAngle;
 
     ctx.beginPath();
     ctx.moveTo(cx,cy);
     ctx.arc(cx,cy,r,start+currentRotation,end+currentRotation);
     ctx.closePath();
-    ctx.fillStyle = `hsl(${(i/PRIZES.length)*360}, 70%, 55%)`;
+    ctx.fillStyle=`hsl(${(i/PRIZES.length)*360},70%,55%)`;
     ctx.fill();
 
     ctx.save();
     ctx.translate(cx,cy);
-    ctx.rotate((start+end)/2 + currentRotation);
+    ctx.rotate((start+end)/2+currentRotation);
     ctx.textAlign="right";
     ctx.fillStyle="white";
-    ctx.font="bold 16px sans-serif";
-    ctx.fillText(PRIZES[i], r-25, 5);
+    ctx.font="bold 14px sans-serif";
+    ctx.fillText(PRIZES[i], r-22,5);
     ctx.restore();
   }
 }
 
-function angleToIndex(angle) {
-  const normalized = ((-angle + Math.PI/2) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
-  return Math.floor(normalized / sliceAngle) % PRIZES.length;
+function angleToIndex(angle){
+  const normalized=(( -angle + Math.PI/2 )%(2*Math.PI)+2*Math.PI)%(2*Math.PI);
+  return Math.floor(normalized/sliceAngle)%PRIZES.length;
 }
 
 /* ---------------------------------------------------------------
-   SPIN WHEEL
+   SPIN FUNCTION
 ---------------------------------------------------------------*/
 function spinWheel() {
   const spins = loadSpinData();
-
   if (spins >= 3) {
     showSpinLimitPopup();
     return;
@@ -387,61 +389,58 @@ function spinWheel() {
   clickSound();
   tickingStart();
 
-  spinBtn.disabled = true;
+  spinBtn.disabled=true;
 
-  let extra = Math.random()*8 + 6;
-  let randomOffset = Math.random()*2*Math.PI;
-  let targetRotation = currentRotation + extra*2*Math.PI + randomOffset;
+  let extra=Math.random()*8+6;
+  let offset=Math.random()*2*Math.PI;
+  let target=currentRotation + extra*2*Math.PI + offset;
+  let duration=3500;
+  let start=performance.now();
+  let startRot=currentRotation;
 
-  let duration = 3500;
-  let start = performance.now();
-  let startRotation = currentRotation;
-
-  function ease(t){ return 1 - Math.pow(1-t,3); }
+  function ease(t){return 1-Math.pow(1-t,3);}
 
   function frame(now){
-    const t = Math.min(1,(now-start)/duration);
-    currentRotation = startRotation + (targetRotation-startRotation)*ease(t);
+    const t=Math.min(1,(now-start)/duration);
+    currentRotation=startRot+(target-startRot)*ease(t);
     drawWheel();
 
-    if (t < 1) {
-      requestAnimationFrame(frame);
-    } else {
+    if(t<1){ requestAnimationFrame(frame); }
+    else {
       tickingStop();
-      const result = PRIZES[angleToIndex(currentRotation)];
-      lastResult.innerHTML = `<strong>${result}</strong> — won by ${name}`;
+      const result=PRIZES[angleToIndex(currentRotation)];
+      lastResult.innerHTML=`<strong>${result}</strong> — won by ${name}`;
       popSound();
       launchConfetti();
       incrementSpin();
       sendResult(name,result);
-      spinBtn.disabled = false;
+      spinBtn.disabled=false;
     }
   }
   requestAnimationFrame(frame);
 }
 
 /* ---------------------------------------------------------------
-   LOG TO GOOGLE SHEET
+   LOGGING
 ---------------------------------------------------------------*/
-async function sendResult(name, result) {
-  logMsg.textContent = "Logging...";
-  const form = new FormData();
-  form.append(FIELD_IDS.name, name);
-  form.append(FIELD_IDS.result, result);
-  form.append(FIELD_IDS.timestamp, new Date().toISOString());
+async function sendResult(name,result){
+  logMsg.textContent="Logging...";
+  const form=new FormData();
+  form.append(FIELD_IDS.name,name);
+  form.append(FIELD_IDS.result,result);
+  form.append(FIELD_IDS.timestamp,new Date().toISOString());
   form.append("entry_options_backup", PRIZES.join("\n"));
-  await fetch(GOOGLE_FORM_ACTION, { method:"POST", mode:"no-cors", body:form });
-  logMsg.textContent = "Logged ✔";
+  await fetch(GOOGLE_FORM_ACTION,{method:"POST",mode:"no-cors",body:form});
+  logMsg.textContent="Logged ✔";
 }
 
 /* ---------------------------------------------------------------
-   INITIALIZE
+   INITIALIZATION
 ---------------------------------------------------------------*/
-nameInput.addEventListener("input", () => {
-  spinBtn.disabled = nameInput.value.trim() === "";
+nameInput.addEventListener("input",()=>{
+  spinBtn.disabled=nameInput.value.trim()==="";
 });
-
-spinBtn.addEventListener("click", spinWheel);
+spinBtn.addEventListener("click",spinWheel);
 
 drawWheel();
 
