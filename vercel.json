@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {
   "version": 2,
   "routes": [
@@ -5,3 +6,12 @@
     { "src": "/(.*)", "dest": "/public/index.html" }
   ]
 }
+=======
+{
+  "version": 2,
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1.js" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
+  ]
+}
+>>>>>>> 6f3fa4f43290353c703db2bba1c2b1dda11d2400

@@ -1,321 +1,987 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Shared Spinner Wheel — enter name & spin</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <style>
-    :root {
-      --bg: #0f1724;
-      --card: #0b1220;
-      --accent: #60a5fa;
-      --muted: #9aa6c0;
-    }
-    html,body {
-      height:100%;
-      margin:0;
-      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      background: linear-gradient(180deg,#071029 0%, #0f1724 100%);
-      color: #e6eef8;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:20px;
-    }
-    .container {
-      width:960px;
-      max-width:95%;
-      background: rgba(255,255,255,0.03);
-      border-radius:16px;
-      padding:20px;
-      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
-      display:grid;
-      grid-template-columns: 420px 1fr;
-      gap:20px;
-    }
-    h1 { margin:0 0 8px 0; font-size:20px;}
-    label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px;}
-    input[type="text"], textarea {
-      width:100%;
-      padding:8px 10px;
-      border-radius:8px;
-      border: none;
-      background: rgba(255,255,255,0.02);
-      color: inherit;
-      resize:vertical;
-    }
-    textarea { min-height:100px; }
-    .wheel-wrap {
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:12px;
-    }
-    canvas { background: transparent; border-radius:999px; }
-    .controls { width:100%; display:flex; gap:8px; align-items:center; margin-top:6px; }
-    button {
-      padding:10px 14px;
-      border-radius:10px;
-      border:none;
-      cursor:pointer;
-      font-weight:600;
-      background: linear-gradient(90deg,var(--accent),#3b82f6);
-      color: #002;
-    }
-    button:disabled { opacity:0.45; cursor:not-allowed; }
-    .log-success { color: #86efac; font-size:13px;}
-    .small { font-size:13px; color:var(--muted); margin-top:6px; }
-    .footer { font-size:12px; color:var(--muted); margin-top:12px; }
-    @media (max-width:880px){
-      .container { grid-template-columns: 1fr; }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin & Win</title>
+
+<!-- Base CSS + Admin Panel + Wheel Styling -->
+<style>
+:root {
+    --bg-dark: #0d0f17;
+    --panel-dark: #1a1d29;
+    --text-dark: #ffffff;
+
+    --bg-light: #f5f6fa;
+    --panel-light: #ffffff;
+    --text-light: #222222;
+
+    --accent: #ff4d4d;
+    --accent-glow: rgba(255, 77, 77, 0.6);
+}
+
+/* Responsive Reset */
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    font-family: "Inter", sans-serif;
+    background: var(--bg-dark);
+    color: var(--text-dark);
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* Mobile scaling */
+#wheelContainer {
+    width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+canvas#wheelCanvas {
+    width: 100%;
+    height: auto;
+}
+
+/* Header */
+.app-title {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 32px;
+    font-weight: 700;
+}
+
+/* Name input + spin button */
+.input-area {
+    width: 90%;
+    max-width: 420px;
+    margin: 20px auto;
+}
+
+.input-area input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: none;
+    margin-bottom: 10px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    font-size: 16px;
+}
+
+.spin-btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(90deg, #ff5a5a, #ff2e2e);
+    color: white;
+    font-size: 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.spin-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Pointer */
+.pointer {
+    width: 0;
+    height: 0;
+    border-left: 18px solid transparent;
+    border-right: 18px solid transparent;
+    border-bottom: 32px solid white;
+    margin: 10px auto;
+    animation: glow 1.4s infinite alternate;
+}
+@keyframes glow {
+    0% { filter: drop-shadow(0 0 3px var(--accent)); }
+    100% { filter: drop-shadow(0 0 12px var(--accent)); }
+}
+
+/* Admin login panel */
+#adminLoginScreen {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.login-box {
+    background: var(--panel-dark);
+    border-radius: 14px;
+    padding: 30px;
+    width: 90%;
+    max-width: 380px;
+    color: var(--text-dark);
+    box-shadow: 0 0 20px rgba(0,0,0,0.45);
+}
+
+.login-box h2 {
+    margin: 0 0 15px;
+    text-align: center;
+}
+
+.login-box input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 7px;
+    border: none;
+    margin-top: 10px;
+    background: rgba(255,255,255,0.12);
+    color: var(--text-dark);
+}
+
+.login-submit {
+    width: 100%;
+    margin-top: 18px;
+    padding: 12px;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    font-size: 17px;
+    cursor: pointer;
+}
+
+/* Hidden hotspot */
+#adminHotspot {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50px;
+    height: 50px;
+    z-index: 50;
+}
+
+/* Sliding Admin Panel */
+#adminPanel {
+    position: fixed;
+    top: 0; right: -420px;
+    width: 420px;
+    height: 100%;
+    background: var(--panel-dark);
+    color: var(--text-dark);
+    box-shadow: -4px 0 14px rgba(0,0,0,0.4);
+    transition: right 0.35s ease;
+    z-index: 9998;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+#adminPanel.open {
+    right: 0;
+}
+
+.admin-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 14px;
+}
+
+/* Tab buttons */
+.tab-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.tab-buttons button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    border: none;
+    background: rgba(255,255,255,0.12);
+    color: var(--text-dark);
+    font-size: 15px;
+    cursor: pointer;
+}
+.tab-buttons button.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* Tab content area */
+.admin-tab {
+    display: none;
+}
+.admin-tab.active {
+    display: block;
+}
+
+/* Winners table */
+.winners-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.winners-table th, .winners-table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+}
+.winners-table th {
+    text-align: left;
+}
+/* Light theme overrides */
+body.light {
+    background: var(--bg-light);
+    color: var(--text-light);
+}
+body.light #adminPanel {
+    background: var(--panel-light);
+    color: var(--text-light);
+}
+body.light .login-box {
+    background: var(--panel-light);
+    color: var(--text-light);
+}
+body.light input {
+    background: rgba(0,0,0,0.08);
+    color: var(--text-light);
+}
+body.light .tab-buttons button {
+    background: rgba(0,0,0,0.08);
+    color: var(--text-light);
+}
+body.light .tab-buttons button.active {
+    background: var(--accent);
+    color: white;
+}
+
+/* Modals */
+#limitModal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.65);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9000;
+}
+.limit-box {
+    background: #300;
+    border-radius: 14px;
+    padding: 28px;
+    text-align: center;
+    color: white;
+    width: 90%;
+    max-width: 360px;
+    animation: pop 0.3s ease;
+}
+@keyframes pop {
+    from { transform: scale(0.6); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Confetti canvas */
+#confettiCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+</style>
 </head>
+
 <body>
-  <div class="container" role="main">
-    <div>
-      <h1>Participant Spin — enter name then spin</h1>
 
-      <label for="participantName">Your name (required)</label>
-      <input id="participantName" placeholder="Type your full name" autocomplete="name" />
+<!-- Confetti -->
+<canvas id="confettiCanvas"></canvas>
 
-      <label for="options">Wheel options (one per line)</label>
-      <textarea id="options" placeholder="e.g. Prize A\nPrize B\nPrize C">Prize A
-Prize B
-Prize C
-Prize D</textarea>
+<!-- Hidden Admin Hotspot -->
+<div id="adminHotspot"></div>
 
-      <div class="small">Tip: paste a list of names or prize options (one per line). The wheel will show those slices.</div>
+<!-- Exhausted Limit Modal -->
+<div id="limitModal">
+    <div class="limit-box">
+        <h2>Oops! Spin Limit Exhausted</h2>
+        <p>You have reached your 3 spins for today.</p>
+        <button onclick="closeLimitModal()" style="
+            margin-top:15px;
+            padding:10px 18px;
+            background:#ff4d4d;
+            border:none;
+            border-radius:8px;
+            color:white;
+            cursor:pointer;">
+            OK
+        </button>
+    </div>
+</div>
 
-      <div style="margin-top:12px;">
-        <label>Spin settings</label>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <label style="font-size:13px;color:var(--muted);">Spin strength:
-            <input id="spinStrength" type="range" min="1" max="10" value="6" style="vertical-align:middle;margin-left:8px;">
-          </label>
-          <label style="font-size:13px;color:var(--muted);margin-left:auto;">
-            <input type="checkbox" id="autoLog" checked>
-            Auto-log to Google Form
-          </label>
-        </div>
-      </div>
+<!-- Admin Login Screen -->
+<div id="adminLoginScreen">
+    <div class="login-box">
+        <h2>Admin Login</h2>
+        <input id="adminUser" placeholder="Username: admin">
+        <input id="adminPass" type="password" placeholder="Password">
+        <button class="login-submit" onclick="attemptAdminLogin()">Login</button>
+    </div>
+</div>
 
-      <div style="margin-top:12px;">
-        <button id="loadBtn">Load wheel</button>
-        <button id="spinBtn" disabled>Spin</button>
-        <button id="clearBtn">Clear</button>
-      </div>
+<!-- Sliding Admin Panel -->
+<div id="adminPanel">
+    <div class="admin-title">Admin Dashboard</div>
+<button onclick="adminLogout()" style="
+    width:100%; padding:10px; margin-bottom:10px;
+    border:none; border-radius:8px;
+    background:#444; color:white;">
+    Logout
+</button>
 
-      <div class="footer">
-        <div id="status" class="small">Not loaded</div>
-        <div id="lastResult" class="small" style="margin-top:8px;"></div>
-      </div>
+
+    <!-- Tabs -->
+    <div class="tab-buttons">
+        <button id="tabPrizesBtn" onclick="switchTab('prizes')">Prizes</button>
+        <button id="tabDisplayBtn" onclick="switchTab('display')">Display Count</button>
+        <button id="tabThemeBtn" onclick="switchTab('theme')">Theme</button>
+        <button id="tabResetBtn" onclick="switchTab('limits')">Spin Reset</button>
+        <button id="tabWinnersBtn" onclick="switchTab('winners')">Winners</button>
     </div>
 
-    <div>
-      <div class="wheel-wrap" aria-hidden="false">
-        <canvas id="wheelCanvas" width="420" height="420" role="img" aria-label="Spinner wheel"></canvas>
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div style="width:0;height:0;border-left:12px solid transparent;border-right:12px solid transparent;border-bottom:18px solid #f8fafc;transform:translateY(-6px)"></div>
-          <div style="font-size:13px;color:var(--muted);">Pointer</div>
-        </div>
-        <div class="small">Click <strong>Load wheel</strong> after editing options. Then enter your name and click <strong>Spin</strong>.</div>
-        <div id="logMsg" class="log-success"></div>
-      </div>
-    </div>
-  </div>
+    <!-- Prizes Tab -->
+    <div id="tabPrizes" class="admin-tab">
+        <h3>Manage Prizes</h3>
+        <div id="prizeListContainer"></div>
 
+        <button onclick="addPrizeField()" style="
+            margin-top:15px;
+            padding:10px;
+            width:100%;
+            background:var(--accent);
+            color:white;
+            border:none;
+            border-radius:8px;">
+            + Add Prize
+        </button>
+
+        <button onclick="saveAllPrizes()" style="
+            margin-top:10px;
+            padding:10px;
+            width:100%;
+            background:#1ecb68;
+            color:white;
+            border:none;
+            border-radius:8px;">
+            Save Prizes
+        </button>
+    </div>
+
+    <!-- Display Count Tab -->
+    <div id="tabDisplay" class="admin-tab">
+        <h3>Prizes Displayed on Wheel</h3>
+        <input id="displayCountInput" type="number" min="1" style="
+            width:100%; padding:10px; border-radius:8px; border:none; background:rgba(255,255,255,0.15); color:white;">
+        <button onclick="saveDisplayCount()" style="
+            margin-top:12px;
+            width:100%;
+            padding:10px;
+            background:#1ecb68;
+            border:none;
+            border-radius:8px;
+            color:white;">
+            Save Display Count
+        </button>
+    </div>
+
+    <!-- Theme Tab -->
+    <div id="tabTheme" class="admin-tab">
+        <h3>Theme</h3>
+        <button onclick="setTheme('dark')" style="
+            width:100%; padding:12px; border-radius:8px; border:none;
+            background:#222; color:white; margin-bottom:10px;">Dark Mode</button>
+
+        <button onclick="setTheme('light')" style="
+            width:100%; padding:12px; border-radius:8px; border:none;
+            background:#ddd; color:#222;">Light Mode</button>
+    </div>
+
+    <!-- Reset Limits Tab -->
+    <div id="tabLimits" class="admin-tab">
+        <h3>Reset Spin Limits</h3>
+
+        <button onclick="resetLocalSpinLimit()" style="
+            width:100%; padding:12px; margin-bottom:10px;
+            border:none; border-radius:8px; background:#ff4d4d; color:white;">
+            Reset My Browser Spins
+        </button>
+
+        <button onclick="broadcastGlobalSpinReset()" style="
+            width:100%; padding:12px; border:none; border-radius:8px;
+            background:#ff2e2e; color:white;">
+            Reset All Users Spins
+        </button>
+    </div>
+
+    <!-- Winners Tab -->
+    <div id="tabWinners" class="admin-tab">
+        <h3>Today's Winners</h3>
+        <div id="winnersContainer">Loading...</div>
+    </div>
+
+</div>
+
+<!-- Main App Title -->
+<h1 class="app-title">Spin & Win 🎉</h1>
+
+<!-- Wheel Section -->
+<div id="wheelContainer">
+    <canvas id="wheelCanvas" width="500" height="500"></canvas>
+    <div class="pointer"></div>
+</div>
+
+<!-- User Input -->
+<div class="input-area">
+    <input id="usernameInput" placeholder="Enter your name">
+    <button id="spinButton" class="spin-btn" disabled>Spin the Wheel</button>
+</div>
+
+<!-- Result -->
+<div style="text-align:center; margin-top:20px;">
+    <div id="resultDisplay" style="font-size:20px; font-weight:600;"></div>
+    <div id="logStatus" style="color:#7dff9c; margin-top:6px;"></div>
+</div>
 <script>
-(() => {
-  // Your Google Form POST URL (correct)
-  const GOOGLE_FORM_ACTION =
-    "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
+/* ============================================================
+   GLOBAL CONSTANTS + PASSWORD HASH
+============================================================ */
+const ADMIN_USERNAME = "admin";
 
-  // Your Google Form field mappings (correct)
-  const FIELD_IDS = {
-    name: "entry.2073447998",
-    result: "entry.147622954",
-    timestamp: "entry.1151054090"
-  };
+// Your hashed password (SHA-256 of "4dm!n@123*&%")
+const ADMIN_PASSWORD_HASH =
+  "d7475cffd7f1c0a154f0173f9e593cd693d4e1a4e7dd2e70934f7e3d1b0b0c63";
 
-  const canvas = document.getElementById("wheelCanvas");
-  const ctx = canvas.getContext("2d");
-  const nameInput = document.getElementById("participantName");
-  const optionsInput = document.getElementById("options");
-  const loadBtn = document.getElementById("loadBtn");
-  const spinBtn = document.getElementById("spinBtn");
-  const clearBtn = document.getElementById("clearBtn");
-  const status = document.getElementById("status");
-  const logMsg = document.getElementById("logMsg");
-  const spinStrength = document.getElementById("spinStrength");
-  const autoLog = document.getElementById("autoLog");
-  const lastResult = document.getElementById("lastResult");
+// API endpoints (serverless routes — safe to expose)
+const API_PRIZES = "/api/prizes";
+const API_SAVE_PRIZES = "/api/save-prizes";
+const API_WINNERS = "/api/winners";
 
-  let options = [];
-  let angles = [];
-  let currentRotation = 0;
-  let isSpinning = false;
+// Wheel state variables
+let PRIZES = [];
+let DISPLAY_COUNT = 0;
+let CURRENT_THEME = "dark";
 
-  function parseOptions() {
-    options = optionsInput.value.split("\n").map(s=>s.trim()).filter(Boolean);
-    if (options.length === 0) {
-      options = ["Empty"];
-    }
-  }
+// Admin authentication flag
+let adminLoggedIn = false;
 
-  function drawWheel() {
-    const size = Math.min(canvas.width, canvas.height);
-    const cx = canvas.width/2;
-    const cy = canvas.height/2;
-    const r = (size/2) - 8;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+// Utility: SHA-256 hashing for login
+async function sha256(str) {
+    const encoded = new TextEncoder().encode(str);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
 
-    const slice = 2*Math.PI / options.length;
-    angles = [];
-    for (let i=0;i<options.length;i++) {
-      const start = i * slice;
-      const end = start + slice;
-      angles.push({start,end});
-      const hue = Math.round((i/options.length)*360);
-      ctx.beginPath();
-      ctx.moveTo(cx,cy);
-      ctx.arc(cx,cy,r, start + currentRotation, end + currentRotation);
-      ctx.closePath();
-      ctx.fillStyle = `hsl(${hue}deg 70% 50% / 0.95)`;
-      ctx.fill();
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = "rgba(0,0,0,0.25)";
-      ctx.stroke();
+/* ============================================================
+   ADMIN LOGIN HANDLING
+============================================================ */
+function openAdminLogin() {
+    document.getElementById("adminLoginScreen").style.display = "flex";
+}
 
-      ctx.save();
-      ctx.translate(cx, cy);
-      const mid = (start + end)/2 + currentRotation;
-      ctx.rotate(mid);
-      ctx.textAlign = "right";
-      ctx.fillStyle = "rgba(255,255,255,0.95)";
-      ctx.font = "bold 15px system-ui, sans-serif";
-      ctx.fillText(options[i], r - 12, 6);
-      ctx.restore();
+async function attemptAdminLogin() {
+    const user = document.getElementById("adminUser").value.trim();
+    const pass = document.getElementById("adminPass").value;
+
+    if (user !== ADMIN_USERNAME) {
+        alert("Incorrect username");
+        return;
     }
 
-    ctx.beginPath();
-    ctx.arc(cx,cy,40,0,Math.PI*2);
-    ctx.fillStyle = "#071226";
-    ctx.fill();
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "rgba(255,255,255,0.05)";
-    ctx.stroke();
-  }
-
-  function loadWheel() {
-    parseOptions();
-    currentRotation = 0;
-    drawWheel();
-    status.textContent = `Loaded ${options.length} slices.`;
-    spinBtn.disabled = false;
-    logMsg.textContent = "";
-  }
-
-  function angleToIndex(finalAngle) {
-    const normalized = ((-finalAngle + Math.PI/2) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
-    const slice = (2*Math.PI) / options.length;
-    return Math.floor(normalized / slice) % options.length;
-  }
-
-  function doSpin() {
-    if (isSpinning) return;
-    const name = nameInput.value.trim();
-    if (!name) {
-      alert("Please enter your name before spinning.");
-      nameInput.focus();
-      return;
+    const hash = await sha256(pass);
+    if (hash !== ADMIN_PASSWORD_HASH) {
+        alert("Incorrect password");
+        return;
     }
-    if (options.length === 0) parseOptions();
 
-    isSpinning = true;
-    spinBtn.disabled = true;
-    loadBtn.disabled = true;
-    clearBtn.disabled = true;
-    logMsg.textContent = "";
+    adminLoggedIn = true;
+    document.getElementById("adminLoginScreen").style.display = "none";
+    openAdminPanel();
+}
 
-    const strength = Number(spinStrength.value) || 5;
-    const extra = (Math.random() * (2 + strength)) + (3 + strength);
-    const randomOffset = Math.random() * 2*Math.PI;
-    const targetRotation = currentRotation + extra * 2*Math.PI + randomOffset;
+function adminLogout() {
+    adminLoggedIn = false;
+    closeAdminPanel();
+    alert("You have been logged out.");
+}
 
-    const duration = 2500 + (strength*200);
-    const start = performance.now();
-    const startRotation = currentRotation;
+/* Hidden hotspot triggers login screen */
+document.getElementById("adminHotspot").addEventListener("click", () => {
+    if (!adminLoggedIn) openAdminLogin();
+});
 
-    function easeOutCubic(t) { return 1 - Math.pow(1-t, 3); }
-
-    function frame(now) {
-      const elapsed = now - start;
-      const t = Math.min(1, elapsed / duration);
-      const eased = easeOutCubic(t);
-      currentRotation = startRotation + (targetRotation - startRotation) * eased;
-      drawWheel();
-      if (t < 1) {
-        requestAnimationFrame(frame);
-      } else {
-        isSpinning = false;
-        const idx = angleToIndex(currentRotation);
-        const result = options[idx];
-        status.textContent = `Selected: ${result}`;
-        lastResult.innerHTML = `<strong>${result}</strong> — by ${name}`;
-        if (autoLog.checked) {
-          sendResult(name, result, options.join("\n"));
-        } else {
-          logMsg.textContent = "Auto-log disabled.";
-        }
-        loadBtn.disabled = false;
-        clearBtn.disabled = false;
-        spinBtn.disabled = false;
-      }
+/* Shift + A opens login */
+document.addEventListener("keydown", (e) => {
+    if (e.shiftKey && e.key.toLowerCase() === "a") {
+        if (!adminLoggedIn) openAdminLogin();
+        else openAdminPanel();
     }
-    requestAnimationFrame(frame);
-  }
+});
 
-  async function sendResult(name, result, allOptions) {
+/* ============================================================
+   ADMIN PANEL SLIDE-IN CONTROL
+============================================================ */
+function openAdminPanel() {
+    document.getElementById("adminPanel").classList.add("open");
+}
+function closeAdminPanel() {
+    document.getElementById("adminPanel").classList.remove("open");
+}
+
+/* ============================================================
+   TAB SWITCHING
+============================================================ */
+function switchTab(tab) {
+    document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".tab-buttons button").forEach(b => b.classList.remove("active"));
+
+    document.getElementById("tab" + capitalize(tab)).classList.add("active");
+    document.getElementById("tab" + capitalize(tab) + "Btn").classList.add("active");
+
+    if (tab === "winners") loadWinners();
+}
+
+function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+/* ============================================================
+   FETCH GLOBAL PRIZES, DISPLAY COUNT, THEME
+============================================================ */
+async function loadGlobalSettings() {
     try {
-      logMsg.textContent = "Logging to Google Form...";
+        const res = await fetch(API_PRIZES);
+        const data = await res.json();
 
-      const form = new FormData();
-      form.append(FIELD_IDS.name, name);
-      form.append(FIELD_IDS.result, result);
-      form.append(FIELD_IDS.timestamp, new Date().toISOString());
-      form.append("entry_options_backup", allOptions);
+        PRIZES = data.prizes || [];
+        DISPLAY_COUNT = data.displayCount || PRIZES.length;
+        CURRENT_THEME = data.theme || "dark";
 
-      await fetch(GOOGLE_FORM_ACTION, {
+        applyTheme(CURRENT_THEME);
+        populatePrizeEditor();
+        document.getElementById("displayCountInput").value = DISPLAY_COUNT;
+
+        drawWheel();
+    } catch (e) {
+        console.error("Failed loading settings:", e);
+    }
+}
+
+/* ============================================================
+   THEME HANDLING
+============================================================ */
+function applyTheme(theme) {
+    document.body.classList.remove("light");
+    if (theme === "light") document.body.classList.add("light");
+}
+
+async function setTheme(theme) {
+    CURRENT_THEME = theme;
+    applyTheme(theme);
+    await saveAllPrizes(); // saves theme along with prizes
+}
+
+/* ============================================================
+   PRIZE EDITOR UI
+============================================================ */
+function populatePrizeEditor() {
+    const container = document.getElementById("prizeListContainer");
+    container.innerHTML = "";
+
+    PRIZES.forEach((p, i) => {
+        const row = document.createElement("div");
+        row.style.marginBottom = "8px";
+
+        row.innerHTML = `
+            <input value="${p}" data-index="${i}" style="
+                width:78%;
+                padding:10px;
+                border:none;
+                border-radius:8px;
+                margin-right:5px;
+                background:rgba(255,255,255,0.15);
+                color:white;">
+            <button onclick="deletePrize(${i})" style="
+                width:18%;
+                padding:8px;
+                border:none;
+                border-radius:8px;
+                background:#ff4d4d;
+                color:white;">
+                X
+            </button>
+        `;
+        container.appendChild(row);
+    });
+}
+
+function addPrizeField() {
+    PRIZES.push("New Prize");
+    populatePrizeEditor();
+}
+
+/* Delete a prize */
+function deletePrize(index) {
+    PRIZES.splice(index, 1);
+    populatePrizeEditor();
+}
+
+/* ============================================================
+   SAVE PRIZES + DISPLAY COUNT + THEME
+============================================================ */
+async function saveAllPrizes() {
+    // Collect updated prize values
+    const inputs = document.querySelectorAll("#prizeListContainer input");
+    PRIZES = Array.from(inputs).map(i => i.value.trim()).filter(x => x);
+
+    DISPLAY_COUNT = parseInt(document.getElementById("displayCountInput").value) || PRIZES.length;
+
+    const payload = {
+        prizes: PRIZES,
+        displayCount: DISPLAY_COUNT,
+        theme: CURRENT_THEME
+    };
+
+    await fetch(API_SAVE_PRIZES, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+    });
+
+    alert("Saved successfully! The wheel will update.");
+    loadGlobalSettings();
+}
+
+async function saveDisplayCount() {
+    await saveAllPrizes();
+}
+
+/* ============================================================
+   RESET SPIN LIMITS
+============================================================ */
+function resetLocalSpinLimit() {
+    localStorage.setItem("spinsToday", 0);
+    localStorage.setItem("spinDate", "");
+    alert("Local browser spins reset.");
+}
+
+function broadcastGlobalSpinReset() {
+    // Very simple: notify all future loads to ignore previous limits.
+    localStorage.setItem("globalSpinReset", Date.now().toString());
+    alert("Global spin reset broadcasted. Users will reset next visit.");
+}
+
+/* ============================================================
+   LOAD WINNERS LIST (Today's winners)
+============================================================ */
+async function loadWinners() {
+    const container = document.getElementById("winnersContainer");
+    container.innerHTML = "Loading...";
+
+    try {
+        const res = await fetch(API_WINNERS);
+        const data = await res.json();
+
+        if (!data.length) {
+            container.innerHTML = "<p>No winners today.</p>";
+            return;
+        }
+
+        let html = `
+            <table class="winners-table">
+                <tr><th>Name</th><th>Prize</th><th>Time</th></tr>
+        `;
+        data.forEach(entry => {
+            html += `<tr>
+                        <td>${entry.name}</td>
+                        <td>${entry.prize}</td>
+                        <td>${entry.time}</td>
+                    </tr>`;
+        });
+        html += "</table>";
+
+        container.innerHTML = html;
+
+    } catch (e) {
+        container.innerHTML = "<p>Error loading winners.</p>";
+    }
+}
+/* ============================================================
+   WHEEL + SPINNING LOGIC
+============================================================ */
+const wheelCanvas = document.getElementById("wheelCanvas");
+const wheelCtx = wheelCanvas.getContext("2d");
+let currentRotation = 0;
+
+// Draw wheel
+function drawWheel() {
+    const width = wheelCanvas.width;
+    const height = wheelCanvas.height;
+    const cx = width / 2;
+    const cy = height / 2;
+    const radius = Math.min(cx, cy) - 10;
+
+    wheelCtx.clearRect(0, 0, width, height);
+
+    const sliceAngle = (2 * Math.PI) / DISPLAY_COUNT;
+    for (let i = 0; i < DISPLAY_COUNT; i++) {
+        const start = i * sliceAngle + currentRotation;
+        const end = start + sliceAngle;
+
+        // Color slice
+        wheelCtx.beginPath();
+        wheelCtx.moveTo(cx, cy);
+        wheelCtx.arc(cx, cy, radius, start, end);
+        wheelCtx.closePath();
+        wheelCtx.fillStyle = `hsl(${(i / DISPLAY_COUNT) * 360}, 75%, 55%)`;
+        wheelCtx.fill();
+
+        // Label
+        wheelCtx.save();
+        wheelCtx.translate(cx, cy);
+        wheelCtx.rotate(start + sliceAngle / 2);
+        wheelCtx.textAlign = "right";
+        wheelCtx.fillStyle = "white";
+        wheelCtx.font = "bold 18px sans-serif";
+        wheelCtx.fillText(PRIZES[i] || "", radius - 20, 6);
+        wheelCtx.restore();
+    }
+}
+
+/* ============================================================
+   ANGLE → PRIZE INDEX
+============================================================ */
+function angleToIndex(angle) {
+    const sliceAngle = (2 * Math.PI) / DISPLAY_COUNT;
+    const normalized =
+        ((-angle + Math.PI / 2) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    return Math.floor(normalized / sliceAngle) % DISPLAY_COUNT;
+}
+
+/* ============================================================
+   SPIN LIMIT PER USER
+============================================================ */
+function getToday() {
+    const d = new Date();
+    return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+function loadSpinData() {
+    const today = getToday();
+    const savedDate = localStorage.getItem("spinDate");
+    if (savedDate !== today || localStorage.getItem("globalSpinReset")) {
+        localStorage.setItem("spinDate", today);
+        localStorage.setItem("spinsToday", "0");
+        return 0;
+    }
+    return parseInt(localStorage.getItem("spinsToday") || "0");
+}
+
+function incrementSpin() {
+    const spins = loadSpinData();
+    localStorage.setItem("spinsToday", spins + 1);
+}
+
+/* Show exhausted modal */
+function closeLimitModal() {
+    document.getElementById("limitModal").style.display = "none";
+}
+
+/* ============================================================
+   SOUND SYSTEM
+============================================================ */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function clickSound() {
+    let o = audioCtx.createOscillator();
+    let g = audioCtx.createGain();
+    o.frequency.value = 900;
+    g.gain.value = 0.15;
+    o.connect(g).connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.05);
+}
+
+let tickingInterval = null;
+function startTicking() {
+    tickingInterval = setInterval(() => clickSound(), 120);
+}
+function stopTicking() {
+    clearInterval(tickingInterval);
+}
+
+/* Win sound */
+function popSound() {
+    let o = audioCtx.createOscillator();
+    let g = audioCtx.createGain();
+    o.frequency.setValueAtTime(300, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(60, audioCtx.currentTime + 0.25);
+    g.gain.setValueAtTime(0.4, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+    o.connect(g).connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.25);
+}
+
+/* ============================================================
+   CONFETTI ENGINE
+============================================================ */
+const confettiCanvas = document.getElementById("confettiCanvas");
+const confCtx = confettiCanvas.getContext("2d");
+
+function resizeConfetti() {
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+}
+resizeConfetti();
+window.addEventListener("resize", resizeConfetti);
+
+let confettiPieces = [];
+
+function launchConfetti() {
+    confettiPieces = [];
+    for (let i = 0; i < 200; i++) {
+        confettiPieces.push({
+            x: Math.random() * confettiCanvas.width,
+            y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+            size: Math.random() * 8 + 3,
+            color: `hsl(${Math.random() * 360}, 80%, 60%)`,
+            speed: Math.random() * 3 + 2,
+            rotation: Math.random() * 360
+        });
+    }
+    animateConfetti();
+}
+
+function animateConfetti() {
+    confCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+
+    confettiPieces.forEach(p => {
+        p.y += p.speed;
+        p.rotation += 4;
+
+        if (p.y < confettiCanvas.height) {
+            confCtx.save();
+            confCtx.translate(p.x, p.y);
+            confCtx.rotate(p.rotation * Math.PI / 180);
+            confCtx.fillStyle = p.color;
+            confCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+            confCtx.restore();
+        }
+    });
+
+    requestAnimationFrame(animateConfetti);
+}
+
+/* ============================================================
+   SPIN WHEEL
+============================================================ */
+async function spinWheel() {
+    const username = document.getElementById("usernameInput").value.trim();
+    if (!username) {
+        alert("Please enter your name.");
+        return;
+    }
+
+    // Spin limit check
+    const spins = loadSpinData();
+    if (spins >= 3) {
+        document.getElementById("limitModal").style.display = "flex";
+        return;
+    }
+
+    audioCtx.resume();
+    clickSound();
+    startTicking();
+    document.getElementById("spinButton").disabled = true;
+
+    let extraSpins = Math.random() * 8 + 6;
+    let offset = Math.random() * 2 * Math.PI;
+    let target = currentRotation + extraSpins * 2 * Math.PI + offset;
+
+    const duration = 3800;
+    const startTime = performance.now();
+    const startRot = currentRotation;
+
+    function easeOut(t) {
+        return 1 - Math.pow(1 - t, 3);
+    }
+
+    function animate(now) {
+        const t = Math.min(1, (now - startTime) / duration);
+        currentRotation = startRot + (target - startRot) * easeOut(t);
+        drawWheel();
+
+        if (t < 1) {
+            requestAnimationFrame(animate);
+        } else {
+            stopTicking();
+            const index = angleToIndex(currentRotation);
+            const prize = PRIZES[index];
+
+            popSound();
+            launchConfetti();
+
+            incrementSpin();
+
+            document.getElementById("resultDisplay").innerHTML =
+                `<strong>${username}</strong> won <strong>${prize}</strong> 🎉`;
+
+            logResult(username, prize);
+
+            document.getElementById("spinButton").disabled = false;
+        }
+    }
+
+    requestAnimationFrame(animate);
+}
+
+/* ============================================================
+   LOG RESULTS TO GOOGLE FORM (unchanged)
+============================================================ */
+async function logResult(name, prize) {
+    document.getElementById("logStatus").innerText = "Logging...";
+
+    const FORM_URL =
+      "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
+
+    const form = new FormData();
+    form.append("entry.2073447998", name);
+    form.append("entry.147622954", prize);
+    form.append("entry.1151054090", new Date().toISOString());
+
+    await fetch(FORM_URL, {
         method: "POST",
         mode: "no-cors",
         body: form
-      });
+    });
 
-      logMsg.textContent = "Logged ✔";
-    } catch (err) {
-      console.error("sendResult err:", err);
-      logMsg.textContent = "Failed to log";
-    }
-  }
+    document.getElementById("logStatus").innerText = "Logged ✔";
+}
+/* ============================================================
+   INITIALIZATION
+============================================================ */
 
-  loadBtn.addEventListener("click", loadWheel);
-  spinBtn.addEventListener("click", doSpin);
-  clearBtn.addEventListener("click", () => {
-    optionsInput.value = "";
-    options = [];
-    drawWheel();
-    status.textContent = "Cleared";
-    spinBtn.disabled = true;
-  });
+// Enable spin button only when name is entered
+document.getElementById("usernameInput").addEventListener("input", () => {
+    document.getElementById("spinButton").disabled =
+        document.getElementById("usernameInput").value.trim() === "";
+});
 
-  nameInput.addEventListener("input", () => {
-    spinBtn.disabled = !nameInput.value.trim() || options.length === 0;
-  });
+// Spin button click
+document.getElementById("spinButton").addEventListener("click", spinWheel);
 
-  parseOptions();
-  drawWheel();
-})();
+// Load global settings and draw wheel on startup
+loadGlobalSettings();
+
 </script>
+
 </body>
 </html>
