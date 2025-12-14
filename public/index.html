@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spin the Wheel</title>
 
 <style>
@@ -52,46 +52,54 @@ body.light {
   position: relative;
   width: 320px;
   height: 320px;
-  margin: 28px auto 20px;
+  margin: 30px auto 22px;
 }
 
+/* 3D Pointer */
 #pointer {
   position: absolute;
-  top: -12px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 16px solid transparent;
-  border-right: 16px solid transparent;
-  border-top: 32px solid var(--accent);
-  filter: drop-shadow(0 0 8px rgba(255,77,77,0.8));
+  border-left: 18px solid transparent;
+  border-right: 18px solid transparent;
+  border-top: 36px solid var(--accent);
+  filter:
+    drop-shadow(0 4px 6px rgba(0,0,0,.6))
+    drop-shadow(0 0 8px rgba(255,77,77,.8));
   z-index: 10;
 }
 
+/* Wheel SVG */
 #wheelSVG {
   width: 100%;
   height: 100%;
-  transition: transform 4s cubic-bezier(.25,.8,.25,1);
   border-radius: 50%;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  transition: transform 4s cubic-bezier(.25,.8,.25,1);
+  box-shadow:
+    inset 0 8px 12px rgba(255,255,255,.15),
+    inset 0 -12px 18px rgba(0,0,0,.35),
+    0 12px 30px rgba(0,0,0,.5);
 }
 
+/* Winning slice highlight */
 .slice-win {
-  filter: drop-shadow(0 0 10px rgba(255,255,255,0.9));
-  transform: scale(1.03);
-  transform-origin: center;
+  filter: drop-shadow(0 0 14px rgba(255,255,255,.9));
 }
 
+/* Center Hub */
 #hub {
   position: absolute;
   inset: 50%;
-  width: 22px;
-  height: 22px;
-  background: #fff;
+  width: 28px;
+  height: 28px;
+  background: radial-gradient(circle at 30% 30%, #fff, #bbb);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  z-index: 5;
+  box-shadow: 0 4px 6px rgba(0,0,0,.6);
+  z-index: 6;
 }
 
 /* Form */
@@ -122,9 +130,48 @@ button.spin {
   cursor: pointer;
 }
 
+/* Result */
 #result {
   margin-top: 16px;
   font-weight: 700;
+}
+
+/* Warning Modal */
+#warningModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.warning-box {
+  background: white;
+  color: #222;
+  padding: 24px;
+  border-radius: 16px;
+  width: 85%;
+  max-width: 300px;
+  text-align: center;
+  animation: pop .25s ease-out;
+}
+
+.warning-box button {
+  margin-top: 14px;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+@keyframes pop {
+  from { transform: scale(.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
 </style>
 </head>
@@ -141,231 +188,154 @@ button.spin {
     <div id="hub"></div>
   </div>
 
-  <label for="nameInput">Your Name</label>
-  <input id="nameInput" placeholder="Required to spin" />
+  <label>Your Name</label>
+  <input id="nameInput" placeholder="Required to spin">
   <button class="spin" onclick="spinWheel()">Spin the Wheel</button>
 
   <div id="result"></div>
 </div>
 
+<!-- In-app warning -->
+<div id="warningModal">
+  <div class="warning-box">
+    <h3>⚠️ Oops</h3>
+    <p>Please enter your name to spin</p>
+    <button onclick="closeWarning()">OK</button>
+  </div>
+</div>
+
 <script>
-/* =========================
-   CONFIG
-========================= */
+/* ================= CONFIG ================= */
 const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
 const FORM_ENDPOINT =
 "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
-/* =========================
-   THEME
-========================= */
+/* ================= THEME ================= */
 function toggleTheme() {
   document.body.classList.toggle("light");
 }
 
-/* =========================
-   HAPTICS
-========================= */
+/* ================= HAPTIC ================= */
 function vibrate(ms) {
   if (navigator.vibrate) navigator.vibrate(ms);
 }
 
-/* =========================
-   AUDIO
-========================= */
+/* ================= WARNING ================= */
+function showWarning() {
+  warningModal.style.display = "flex";
+  vibrate(200);
+}
+function closeWarning() {
+  warningModal.style.display = "none";
+  nameInput.focus();
+}
+
+/* ================= AUDIO ================= */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function clickSound() {
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.frequency.value = 900;
-  g.gain.value = 0.08;
+function clickSound(){ tone(900,.05,.08); }
+function tickSound(){ tone(480,.03,.05); }
+function winSound(){
+  [600,900,1200].forEach((f,i)=>tone(f,.2,.12,i*.08));
+}
+function tone(freq,dur,vol,delay=0){
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.frequency.value=freq;
+  g.gain.value=vol;
   o.connect(g).connect(audioCtx.destination);
-  o.start();
-  o.stop(audioCtx.currentTime + 0.05);
+  o.start(audioCtx.currentTime+delay);
+  o.stop(audioCtx.currentTime+delay+dur);
 }
 
-let tickTimer;
-function startTick() {
-  tickTimer = setInterval(() => {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.frequency.value = 480;
-    g.gain.value = 0.05;
-    o.connect(g).connect(audioCtx.destination);
-    o.start();
-    o.stop(audioCtx.currentTime + 0.03);
-  }, 120);
-}
-function stopTick() {
-  clearInterval(tickTimer);
-}
-
-function winSound() {
-  for (let i = 0; i < 3; i++) {
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
-    o.type = "triangle";
-    o.frequency.value = 600 + i * 300;
-    g.gain.value = 0.12;
-    o.connect(g).connect(audioCtx.destination);
-    o.start(audioCtx.currentTime + i * 0.08);
-    o.stop(audioCtx.currentTime + i * 0.25);
-  }
-}
-
-/* =========================
-   CONFETTI
-========================= */
-function confetti() {
-  for (let i = 0; i < 80; i++) {
-    const c = document.createElement("div");
-    c.style.position = "fixed";
-    c.style.left = Math.random() * 100 + "vw";
-    c.style.top = "-10px";
-    c.style.width = "8px";
-    c.style.height = "8px";
-    c.style.borderRadius = "50%";
-    c.style.background = `hsl(${Math.random()*360},80%,60%)`;
-    c.style.zIndex = 9999;
+/* ================= CONFETTI ================= */
+function confetti(){
+  for(let i=0;i<80;i++){
+    const c=document.createElement("div");
+    c.style.position="fixed";
+    c.style.left=Math.random()*100+"vw";
+    c.style.top="-10px";
+    c.style.width="8px";
+    c.style.height="8px";
+    c.style.borderRadius="50%";
+    c.style.background=`hsl(${Math.random()*360},80%,60%)`;
+    c.style.zIndex=9999;
     document.body.appendChild(c);
-
-    c.animate([
-      { transform: "translateY(0)" },
-      { transform: `translateY(${window.innerHeight + 100}px)` }
-    ], {
-      duration: 1800 + Math.random()*1200,
-      easing: "ease-out"
-    }).onfinish = () => c.remove();
+    c.animate([{transform:"translateY(0)"},{transform:`translateY(${innerHeight+100}px)`}],
+      {duration:1800+Math.random()*1200,easing:"ease-out"}
+    ).onfinish=()=>c.remove();
   }
 }
 
-/* =========================
-   PRIZES
-========================= */
-let prizes = [];
-let rotation = 0;
-let slices = [];
-
-async function loadPrizes() {
-  try {
-    const url =
-      `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`;
-    const res = await fetch(url);
-    const text = await res.text();
-    const json = JSON.parse(text.substr(47).slice(0, -2));
-    prizes = json.table.rows.map(r => r.c[0]?.v).filter(Boolean);
-  } catch {}
-
-  if (prizes.length === 0) {
-    prizes = ["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
-  }
+/* ================= WHEEL ================= */
+let prizes=[],rotation=0,slices=[];
+async function loadPrizes(){
+  try{
+    const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`);
+    const txt=await res.text();
+    const json=JSON.parse(txt.substr(47).slice(0,-2));
+    prizes=json.table.rows.map(r=>r.c[0]?.v).filter(Boolean);
+  }catch{}
+  if(!prizes.length) prizes=["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
   drawWheel();
 }
 
-/* =========================
-   SVG WHEEL
-========================= */
-function drawWheel() {
-  wheelSVG.innerHTML = "";
-  slices = [];
+function drawWheel(){
+  wheelSVG.innerHTML=""; slices=[];
+  const cx=250,cy=250,r=240,step=2*Math.PI/prizes.length;
+  prizes.forEach((label,i)=>{
+    const a=i*step,b=a+step;
+    const p=document.createElementNS("http://www.w3.org/2000/svg","path");
+    p.setAttribute("d",`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
+      A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`);
+    p.setAttribute("fill",`hsl(${i/prizes.length*360},75%,55%)`);
+    wheelSVG.appendChild(p); slices.push(p);
 
-  const cx = 250, cy = 250, r = 240;
-  const slice = 2 * Math.PI / prizes.length;
-
-  prizes.forEach((label, i) => {
-    const start = i * slice;
-    const end = start + slice;
-
-    const x1 = cx + r * Math.cos(start);
-    const y1 = cy + r * Math.sin(start);
-    const x2 = cx + r * Math.cos(end);
-    const y2 = cy + r * Math.sin(end);
-
-    const path = document.createElementNS("http://www.w3.org/2000/svg","path");
-    path.setAttribute("d",
-      `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`);
-    path.setAttribute("fill",
-      `hsl(${(i / prizes.length) * 360},75%,55%)`);
-
-    wheelSVG.appendChild(path);
-    slices.push(path);
-
-    const angle = start + slice / 2;
-    const tx = cx + (r - 40) * Math.cos(angle);
-    const ty = cy + (r - 40) * Math.sin(angle);
-
-    const text = document.createElementNS("http://www.w3.org/2000/svg","text");
-    text.textContent = label;
-    text.setAttribute("x", tx);
-    text.setAttribute("y", ty);
-    text.setAttribute("fill", "white");
-    text.setAttribute("font-size", "16");
-    text.setAttribute("text-anchor", "middle");
-    text.setAttribute("dominant-baseline", "middle");
-    text.setAttribute(
-      "transform",
-      `rotate(${angle * 180 / Math.PI}, ${tx}, ${ty})`
-    );
-    wheelSVG.appendChild(text);
+    const ang=a+step/2;
+    const t=document.createElementNS("http://www.w3.org/2000/svg","text");
+    t.textContent=label;
+    t.setAttribute("x",cx+(r-40)*Math.cos(ang));
+    t.setAttribute("y",cy+(r-40)*Math.sin(ang));
+    t.setAttribute("fill","white");
+    t.setAttribute("font-size","16");
+    t.setAttribute("text-anchor","middle");
+    t.setAttribute("dominant-baseline","middle");
+    t.setAttribute("transform",`rotate(${ang*180/Math.PI},${t.getAttribute("x")},${t.getAttribute("y")})`);
+    wheelSVG.appendChild(t);
   });
 }
 
-/* =========================
-   SPIN (FIXED MATH)
-========================= */
-function spinWheel() {
-  const name = nameInput.value.trim();
-  if (!name) {
-    alert("Please enter your name before spin");
-    vibrate(200);
-    return;
-  }
+/* ================= SPIN ================= */
+function spinWheel(){
+  const name=nameInput.value.trim();
+  if(!name){ showWarning(); return; }
 
-  audioCtx.resume();
-  vibrate(50);
-  clickSound();
-  startTick();
+  audioCtx.resume(); vibrate(50); clickSound();
+  slices.forEach(s=>s.classList.remove("slice-win"));
 
-  slices.forEach(s => s.classList.remove("slice-win"));
+  const spins=Math.random()*360+1800;
+  rotation+=spins;
+  wheelSVG.style.transform=`rotate(${rotation}deg)`;
 
-  const spins = Math.random() * 360 + 1800;
-  rotation += spins;
-  wheelSVG.style.transform = `rotate(${rotation}deg)`;
-
-  const sliceDeg = 360 / prizes.length;
-
-  setTimeout(() => {
-    stopTick();
-    winSound();
-    vibrate([100, 50, 100]);
-    confetti();
-
-    const normalized =
-      (360 - ((rotation + 90) % 360) + 360) % 360;
-
-    const index = Math.floor(normalized / sliceDeg);
-
-    slices[index].classList.add("slice-win");
-
-    const prize = prizes[index];
-    result.textContent = `${name} won ${prize} 🎉`;
-    logResult(name, prize);
-  }, 4000);
+  const sliceDeg=360/prizes.length;
+  setTimeout(()=>{
+    winSound(); vibrate([100,50,100]); confetti();
+    const norm=(360-((rotation+90)%360)+360)%360;
+    const idx=Math.floor(norm/sliceDeg);
+    slices[idx].classList.add("slice-win");
+    result.textContent=`${name} won ${prizes[idx]} 🎉`;
+    logResult(name,prizes[idx]);
+  },4000);
 }
 
-/* =========================
-   GOOGLE FORM LOG
-========================= */
-function logResult(name, prize) {
-  const data = new FormData();
-  data.append("entry.2073447998", name);
-  data.append("entry.147622954", prize);
-  data.append("entry.1151054090", new Date().toISOString());
-  fetch(FORM_ENDPOINT, { method: "POST", body: data, mode: "no-cors" });
+/* ================= LOG ================= */
+function logResult(name,prize){
+  const d=new FormData();
+  d.append("entry.2073447998",name);
+  d.append("entry.147622954",prize);
+  d.append("entry.1151054090",new Date().toISOString());
+  fetch(FORM_ENDPOINT,{method:"POST",body:d,mode:"no-cors"});
 }
 
-/* INIT */
 loadPrizes();
 </script>
 </body>
