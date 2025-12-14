@@ -7,18 +7,18 @@
 
 <style>
 :root {
-  --bg-light: linear-gradient(135deg, #f5f7fa, #e4ebf5);
   --bg-dark: linear-gradient(135deg, #0f1220, #1b1f36);
-  --text-light: #222;
-  --text-dark: #fff;
+  --bg-light: linear-gradient(135deg, #f3f6fb, #e4ebf5);
+  --text-dark: #ffffff;
+  --text-light: #222222;
 }
 
 body {
   margin: 0;
   font-family: system-ui, sans-serif;
+  min-height: 100vh;
   background: var(--bg-dark);
   color: var(--text-dark);
-  min-height: 100vh;
   display: flex;
   justify-content: center;
 }
@@ -31,40 +31,26 @@ body.light {
 .container {
   width: 100%;
   max-width: 420px;
-  padding: 16px;
+  padding: 18px;
   text-align: center;
 }
 
-/* Theme toggle */
 .theme-toggle {
   position: fixed;
   top: 12px;
   right: 12px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 20px;
   border: none;
   cursor: pointer;
+  font-size: 16px;
 }
 
 /* Wheel */
 #wheelWrap {
-  position: relative;
   width: 320px;
   height: 320px;
-  margin: 20px auto;
-}
-
-#pointer {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 0;
-  height: 0;
-  border-left: 14px solid transparent;
-  border-right: 14px solid transparent;
-  border-top: 26px solid currentColor;
-  z-index: 5;
+  margin: 24px auto;
 }
 
 #wheelSVG {
@@ -73,11 +59,12 @@ body.light {
   transition: transform 4s cubic-bezier(.25,.8,.25,1);
 }
 
-/* Controls */
+/* Input + Button */
 input {
   width: 100%;
-  padding: 12px;
-  border-radius: 8px;
+  padding: 14px;
+  font-size: 16px;
+  border-radius: 10px;
   border: none;
   margin-bottom: 12px;
 }
@@ -94,8 +81,8 @@ button.spin {
 }
 
 #result {
-  margin-top: 14px;
-  font-weight: bold;
+  margin-top: 16px;
+  font-weight: 600;
 }
 </style>
 </head>
@@ -107,34 +94,103 @@ button.spin {
   <h2>Spin the Wheel 🎉</h2>
 
   <div id="wheelWrap">
-    <div id="pointer"></div>
     <svg id="wheelSVG" viewBox="0 0 500 500"></svg>
   </div>
 
-  <input id="nameInput" placeholder="Enter your name" />
+  <input id="nameInput" placeholder="Name required to spin" />
   <button class="spin" onclick="spinWheel()">Spin the Wheel</button>
 
   <div id="result"></div>
 </div>
 
 <script>
-/* ==============================
+/* =========================
    CONFIG
-============================== */
+========================= */
 const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
 const FORM_ENDPOINT =
 "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
-/* ==============================
+/* =========================
    THEME
-============================== */
+========================= */
 function toggleTheme() {
   document.body.classList.toggle("light");
 }
 
-/* ==============================
-   LOAD PRIZES
-============================== */
+/* =========================
+   AUDIO
+========================= */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function clickSound() {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.frequency.value = 800;
+  g.gain.value = 0.08;
+  o.connect(g).connect(audioCtx.destination);
+  o.start();
+  o.stop(audioCtx.currentTime + 0.05);
+}
+
+let tickTimer;
+function startTick() {
+  tickTimer = setInterval(() => {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.frequency.value = 450;
+    g.gain.value = 0.05;
+    o.connect(g).connect(audioCtx.destination);
+    o.start();
+    o.stop(audioCtx.currentTime + 0.03);
+  }, 120);
+}
+function stopTick() {
+  clearInterval(tickTimer);
+}
+
+function winSound() {
+  for (let i = 0; i < 3; i++) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "triangle";
+    o.frequency.value = 600 + i * 250;
+    g.gain.value = 0.12;
+    o.connect(g).connect(audioCtx.destination);
+    o.start(audioCtx.currentTime + i * 0.08);
+    o.stop(audioCtx.currentTime + i * 0.25);
+  }
+}
+
+/* =========================
+   CONFETTI
+========================= */
+function confetti() {
+  for (let i = 0; i < 90; i++) {
+    const c = document.createElement("div");
+    c.style.position = "fixed";
+    c.style.left = Math.random() * 100 + "vw";
+    c.style.top = "-10px";
+    c.style.width = "8px";
+    c.style.height = "8px";
+    c.style.borderRadius = "50%";
+    c.style.background = `hsl(${Math.random()*360},80%,60%)`;
+    c.style.zIndex = 9999;
+    document.body.appendChild(c);
+
+    c.animate([
+      { transform: "translateY(0)" },
+      { transform: `translateY(${window.innerHeight + 100}px)` }
+    ], {
+      duration: 1800 + Math.random()*1200,
+      easing: "ease-out"
+    }).onfinish = () => c.remove();
+  }
+}
+
+/* =========================
+   PRIZES
+========================= */
 let prizes = [];
 let rotation = 0;
 
@@ -146,9 +202,7 @@ async function loadPrizes() {
     const text = await res.text();
     const json = JSON.parse(text.substr(47).slice(0, -2));
     prizes = json.table.rows.map(r => r.c[0]?.v).filter(Boolean);
-  } catch {
-    prizes = [];
-  }
+  } catch {}
 
   if (prizes.length === 0) {
     prizes = ["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
@@ -156,11 +210,11 @@ async function loadPrizes() {
   drawWheel();
 }
 
-/* ==============================
-   DRAW SVG WHEEL
-============================== */
+/* =========================
+   SVG WHEEL
+========================= */
 function drawWheel() {
-  const svg = document.getElementById("wheelSVG");
+  const svg = wheelSVG;
   svg.innerHTML = "";
 
   const cx = 250, cy = 250, r = 240;
@@ -179,7 +233,7 @@ function drawWheel() {
     path.setAttribute("d",
       `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`);
     path.setAttribute("fill",
-      `hsl(${(i / prizes.length) * 360}, 75%, 55%)`);
+      `hsl(${(i / prizes.length) * 360},75%,55%)`);
     svg.appendChild(path);
 
     const angle = start + slice / 2;
@@ -202,14 +256,18 @@ function drawWheel() {
   });
 }
 
-/* ==============================
+/* =========================
    SPIN + LOG
-============================== */
+========================= */
 function spinWheel() {
   const name = nameInput.value.trim();
-  if (!name) return alert("Enter your name");
+  if (!name) return alert("Name is required to spin");
 
-  const spins = Math.random() * 360 + 1800;
+  audioCtx.resume();
+  clickSound();
+  startTick();
+
+  const spins = Math.random()*360 + 1800;
   rotation += spins;
   wheelSVG.style.transform = `rotate(${rotation}deg)`;
 
@@ -219,21 +277,24 @@ function spinWheel() {
   );
 
   setTimeout(() => {
+    stopTick();
+    winSound();
+    confetti();
+
     const prize = prizes[index];
     result.textContent = `${name} won ${prize} 🎉`;
     logResult(name, prize);
   }, 4000);
 }
 
-/* ==============================
+/* =========================
    GOOGLE FORM LOG
-============================== */
+========================= */
 function logResult(name, prize) {
   const data = new FormData();
   data.append("entry.2073447998", name);
   data.append("entry.147622954", prize);
   data.append("entry.1151054090", new Date().toISOString());
-
   fetch(FORM_ENDPOINT, { method: "POST", body: data, mode: "no-cors" });
 }
 
