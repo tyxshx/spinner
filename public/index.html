@@ -55,22 +55,20 @@ body.light {
   margin: 28px auto 20px;
 }
 
-/* Downward Pointer (PREMIUM) */
 #pointer {
   position: absolute;
-  top: -10px;
+  top: -12px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
   border-left: 16px solid transparent;
   border-right: 16px solid transparent;
-  border-top: 30px solid var(--accent);
-  filter: drop-shadow(0 0 6px rgba(255,77,77,0.7));
+  border-top: 32px solid var(--accent);
+  filter: drop-shadow(0 0 8px rgba(255,77,77,0.8));
   z-index: 10;
 }
 
-/* Wheel SVG */
 #wheelSVG {
   width: 100%;
   height: 100%;
@@ -79,7 +77,12 @@ body.light {
   box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
-/* Center Hub */
+.slice-win {
+  filter: drop-shadow(0 0 10px rgba(255,255,255,0.9));
+  transform: scale(1.03);
+  transform-origin: center;
+}
+
 #hub {
   position: absolute;
   inset: 50%;
@@ -161,6 +164,13 @@ function toggleTheme() {
 }
 
 /* =========================
+   HAPTICS
+========================= */
+function vibrate(ms) {
+  if (navigator.vibrate) navigator.vibrate(ms);
+}
+
+/* =========================
    AUDIO
 ========================= */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -208,7 +218,7 @@ function winSound() {
    CONFETTI
 ========================= */
 function confetti() {
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 80; i++) {
     const c = document.createElement("div");
     c.style.position = "fixed";
     c.style.left = Math.random() * 100 + "vw";
@@ -235,6 +245,7 @@ function confetti() {
 ========================= */
 let prizes = [];
 let rotation = 0;
+let slices = [];
 
 async function loadPrizes() {
   try {
@@ -257,6 +268,7 @@ async function loadPrizes() {
 ========================= */
 function drawWheel() {
   wheelSVG.innerHTML = "";
+  slices = [];
 
   const cx = 250, cy = 250, r = 240;
   const slice = 2 * Math.PI / prizes.length;
@@ -275,7 +287,9 @@ function drawWheel() {
       `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`);
     path.setAttribute("fill",
       `hsl(${(i / prizes.length) * 360},75%,55%)`);
+
     wheelSVG.appendChild(path);
+    slices.push(path);
 
     const angle = start + slice / 2;
     const tx = cx + (r - 40) * Math.cos(angle);
@@ -298,15 +312,22 @@ function drawWheel() {
 }
 
 /* =========================
-   SPIN + CORRECT MATH
+   SPIN (FIXED MATH)
 ========================= */
 function spinWheel() {
   const name = nameInput.value.trim();
-  if (!name) return alert("Your name is required");
+  if (!name) {
+    alert("Please enter your name before spin");
+    vibrate(200);
+    return;
+  }
 
   audioCtx.resume();
+  vibrate(50);
   clickSound();
   startTick();
+
+  slices.forEach(s => s.classList.remove("slice-win"));
 
   const spins = Math.random() * 360 + 1800;
   rotation += spins;
@@ -317,15 +338,17 @@ function spinWheel() {
   setTimeout(() => {
     stopTick();
     winSound();
+    vibrate([100, 50, 100]);
     confetti();
 
-    // 🎯 POINTER IS DOWNWARD (0°), SVG 0° is right → offset +90°
     const normalized =
       (360 - ((rotation + 90) % 360) + 360) % 360;
 
     const index = Math.floor(normalized / sliceDeg);
-    const prize = prizes[index];
 
+    slices[index].classList.add("slice-win");
+
+    const prize = prizes[index];
     result.textContent = `${name} won ${prize} 🎉`;
     logResult(name, prize);
   }, 4000);
