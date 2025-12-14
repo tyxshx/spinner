@@ -237,7 +237,7 @@ function resetSpinLimit(){
   localStorage.removeItem("spinData");
 }
 
-/* ===== SECRET RESET (Ctrl + Shift + A + D) ===== */
+/* ===== SECRET RESET (Ctrl + Shift + X) ===== */
 document.addEventListener("keydown", (e) => {
   if (e.ctrlKey && e.shiftKey && e.code === "KeyX") {
     resetSpinLimit();
@@ -290,6 +290,20 @@ function confetti(){
       {duration:1800+Math.random()*1200,easing:"ease-out"}
     ).onfinish=()=>c.remove();
   }
+}
+
+/* ================= BACKLOG TO GOOGLE FORM ================= */
+function logResultToForm(name, prize){
+  const formData = new FormData();
+  formData.append("entry.2073447998", name);
+  formData.append("entry.147622954", prize);
+  formData.append("entry.1151054090", new Date().toISOString());
+
+  fetch(FORM_ENDPOINT, {
+    method: "POST",
+    body: formData,
+    mode: "no-cors"
+  });
 }
 
 /* ================= WHEEL & PRIZES ================= */
@@ -379,6 +393,9 @@ function spinWheel(){
     const prize=prizes[idx];
 
     result.textContent=`${name} won ${prize} 🎉`;
+
+    /* 🔽 GOOGLE FORM BACKLOG CALL (ADDED) */
+    logResultToForm(name, prize);
 
     data.count++;
     if(data.count===MAX_SPINS) data.last=Date.now();
