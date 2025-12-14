@@ -78,7 +78,9 @@ body.light{background:var(--bg-light);color:var(--text-light)}
     0 12px 30px rgba(0,0,0,.5);
 }
 
-.slice-win{filter:drop-shadow(0 0 18px rgba(255,255,255,.95))}
+.slice-win{
+  filter:drop-shadow(0 0 18px rgba(255,255,255,.95));
+}
 
 #hub{
   position:absolute;
@@ -92,7 +94,7 @@ body.light{background:var(--bg-light);color:var(--text-light)}
   z-index:6;
 }
 
-/* ===== FORM (FIXED WIDTH ISSUE) ===== */
+/* ===== FORM ===== */
 .form-group{
   display:flex;
   flex-direction:column;
@@ -121,7 +123,10 @@ button.spin:disabled{
   cursor:not-allowed;
 }
 
-#result{margin-top:12px;font-weight:700}
+#result{
+  margin-top:12px;
+  font-weight:700;
+}
 
 /* ===== SLICE TEXT ===== */
 .slice-text{
@@ -210,12 +215,14 @@ button.spin:disabled{
 /* ================= CONFIG ================= */
 const MAX_SPINS = 3;
 const RESET_HOURS = 24;
+const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
+const FORM_ENDPOINT = "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
 /* ================= STATE ================= */
 let soundOn = true;
 let spinning = false;
 
-/* ================= SPIN STORAGE ================= */
+/* ================= STORAGE ================= */
 function getSpinData(){
   const data = JSON.parse(localStorage.getItem("spinData")) || { count:0, last:null };
   if (data.last && Date.now() - data.last >= RESET_HOURS * 3600000) {
@@ -230,28 +237,26 @@ function resetSpinLimit(){
   localStorage.removeItem("spinData");
 }
 
-/* ================= SECRET KEYBOARD RESET ================= */
-document.addEventListener("keydown", e => {
-  if (e.ctrlKey && e.shiftKey && e.code === "KeyA") {
-    document.addEventListener("keydown", e2 => {
-      if (e2.code === "KeyD") {
-        resetSpinLimit();
-      }
-    }, { once:true });
+/* ===== SECRET RESET (Ctrl + Shift + A + D) ===== */
+document.addEventListener("keydown", e=>{
+  if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
+    document.addEventListener("keydown", e2=>{
+      if(e2.code==="KeyD"){ resetSpinLimit(); }
+    },{once:true});
   }
 });
 
 /* ================= UI ================= */
 function toggleTheme(){document.body.classList.toggle("light")}
 function toggleSound(){
-  soundOn = !soundOn;
+  soundOn=!soundOn;
   document.querySelector(".sound-toggle").textContent = soundOn ? "🔊" : "🔇";
 }
 function showModal(text){
-  modalText.textContent = text;
-  modal.style.display = "flex";
+  modalText.textContent=text;
+  modal.style.display="flex";
 }
-function closeModal(){modal.style.display = "none"}
+function closeModal(){modal.style.display="none"}
 function vibrate(ms){navigator.vibrate && navigator.vibrate(ms)}
 
 /* ================= AUDIO ================= */
@@ -260,9 +265,9 @@ let tickTimer;
 function tone(f,d,v){
   if(!soundOn)return;
   const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-  o.frequency.value=f;g.gain.value=v;
+  o.frequency.value=f; g.gain.value=v;
   o.connect(g).connect(audioCtx.destination);
-  o.start();o.stop(audioCtx.currentTime+d);
+  o.start(); o.stop(audioCtx.currentTime+d);
 }
 function startSpinSound(){tickTimer=setInterval(()=>tone(480,.03,.05),120)}
 function stopSpinSound(){clearInterval(tickTimer)}
@@ -289,17 +294,31 @@ function confetti(){
   }
 }
 
-/* ================= WHEEL ================= */
-let prizes=["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
-let rotation=0,slices=[];
+/* ================= WHEEL & PRIZES ================= */
+let prizes=[], rotation=0, slices=[];
+
+async function loadPrizes(){
+  try{
+    const res = await fetch(
+      `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`
+    );
+    const text = await res.text();
+    const json = JSON.parse(text.substr(47).slice(0,-2));
+    prizes = json.table.rows.map(r=>r.c[0]?.v).filter(Boolean);
+  }catch{}
+  if(!prizes.length){
+    prizes=["Prize A","Prize B","Prize C","Prize D"];
+  }
+  drawWheel();
+}
 
 function drawWheel(){
   wheelSVG.innerHTML="";
   slices=[];
-  const cx=250,cy=250,r=240,step=2*Math.PI/prizes.length;
+  const cx=250, cy=250, r=240, step=2*Math.PI/prizes.length;
 
   prizes.forEach((label,i)=>{
-    const a=i*step,b=a+step;
+    const a=i*step, b=a+step;
     const path=`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
       A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`;
 
@@ -322,7 +341,6 @@ function drawWheel(){
     wheelSVG.appendChild(fo);
   });
 }
-drawWheel();
 
 /* ================= SPIN ================= */
 function spinWheel(){
@@ -379,6 +397,8 @@ function spinWheel(){
     spinBtn.disabled=false;
   },4000);
 }
+
+loadPrizes();
 </script>
 </body>
 </html>
