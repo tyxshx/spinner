@@ -48,9 +48,23 @@ body.light {
 
 /* Wheel */
 #wheelWrap {
+  position: relative;
   width: 320px;
   height: 320px;
   margin: 24px auto;
+}
+
+#pointer {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 24px solid currentColor;
+  z-index: 5;
 }
 
 #wheelSVG {
@@ -59,21 +73,21 @@ body.light {
   transition: transform 4s cubic-bezier(.25,.8,.25,1);
 }
 
-/* Input + Button */
-input {
+/* Input + Button (same width) */
+input, button.spin {
   width: 100%;
   padding: 14px;
   font-size: 16px;
   border-radius: 10px;
   border: none;
+  box-sizing: border-box;
+}
+
+input {
   margin-bottom: 12px;
 }
 
 button.spin {
-  width: 100%;
-  padding: 14px;
-  border-radius: 10px;
-  border: none;
   font-size: 18px;
   background: #ff4d4d;
   color: white;
@@ -94,6 +108,7 @@ button.spin {
   <h2>Spin the Wheel 🎉</h2>
 
   <div id="wheelWrap">
+    <div id="pointer"></div>
     <svg id="wheelSVG" viewBox="0 0 500 500"></svg>
   </div>
 
@@ -214,8 +229,7 @@ async function loadPrizes() {
    SVG WHEEL
 ========================= */
 function drawWheel() {
-  const svg = wheelSVG;
-  svg.innerHTML = "";
+  wheelSVG.innerHTML = "";
 
   const cx = 250, cy = 250, r = 240;
   const slice = 2 * Math.PI / prizes.length;
@@ -234,7 +248,7 @@ function drawWheel() {
       `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`);
     path.setAttribute("fill",
       `hsl(${(i / prizes.length) * 360},75%,55%)`);
-    svg.appendChild(path);
+    wheelSVG.appendChild(path);
 
     const angle = start + slice / 2;
     const tx = cx + (r - 40) * Math.cos(angle);
@@ -252,7 +266,7 @@ function drawWheel() {
       "transform",
       `rotate(${angle * 180 / Math.PI}, ${tx}, ${ty})`
     );
-    svg.appendChild(text);
+    wheelSVG.appendChild(text);
   });
 }
 
