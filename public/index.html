@@ -16,7 +16,7 @@
 
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
   background: var(--bg-dark);
   color: var(--text-dark);
@@ -66,13 +66,11 @@ body.light {
   border-left: 18px solid transparent;
   border-right: 18px solid transparent;
   border-top: 36px solid var(--accent);
-  filter:
-    drop-shadow(0 4px 6px rgba(0,0,0,.6))
-    drop-shadow(0 0 8px rgba(255,77,77,.8));
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.6))
+          drop-shadow(0 0 8px rgba(255,77,77,.8));
   z-index: 10;
 }
 
-/* Wheel SVG */
 #wheelSVG {
   width: 100%;
   height: 100%;
@@ -84,12 +82,10 @@ body.light {
     0 12px 30px rgba(0,0,0,.5);
 }
 
-/* Winning slice highlight */
 .slice-win {
-  filter: drop-shadow(0 0 14px rgba(255,255,255,.9));
+  filter: drop-shadow(0 0 16px rgba(255,255,255,.95));
 }
 
-/* Center Hub */
 #hub {
   position: absolute;
   inset: 50%;
@@ -130,10 +126,26 @@ button.spin {
   cursor: pointer;
 }
 
-/* Result */
 #result {
   margin-top: 16px;
   font-weight: 700;
+}
+
+/* Wrapped SVG text */
+.slice-text {
+  width: 110px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: white;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 /* Warning Modal */
@@ -195,7 +207,6 @@ button.spin {
   <div id="result"></div>
 </div>
 
-<!-- In-app warning -->
 <div id="warningModal">
   <div class="warning-box">
     <h3>⚠️ Oops</h3>
@@ -205,22 +216,18 @@ button.spin {
 </div>
 
 <script>
-/* ================= CONFIG ================= */
 const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
 const FORM_ENDPOINT =
 "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
-/* ================= THEME ================= */
 function toggleTheme() {
   document.body.classList.toggle("light");
 }
 
-/* ================= HAPTIC ================= */
 function vibrate(ms) {
   if (navigator.vibrate) navigator.vibrate(ms);
 }
 
-/* ================= WARNING ================= */
 function showWarning() {
   warningModal.style.display = "flex";
   vibrate(200);
@@ -230,24 +237,20 @@ function closeWarning() {
   nameInput.focus();
 }
 
-/* ================= AUDIO ================= */
+/* AUDIO */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function clickSound(){ tone(900,.05,.08); }
-function tickSound(){ tone(480,.03,.05); }
-function winSound(){
-  [600,900,1200].forEach((f,i)=>tone(f,.2,.12,i*.08));
-}
-function tone(freq,dur,vol,delay=0){
+function tone(f,d,v,t=0){
   const o=audioCtx.createOscillator();
   const g=audioCtx.createGain();
-  o.frequency.value=freq;
-  g.gain.value=vol;
+  o.frequency.value=f; g.gain.value=v;
   o.connect(g).connect(audioCtx.destination);
-  o.start(audioCtx.currentTime+delay);
-  o.stop(audioCtx.currentTime+delay+dur);
+  o.start(audioCtx.currentTime+t);
+  o.stop(audioCtx.currentTime+t+d);
 }
+function clickSound(){ tone(900,.05,.08); }
+function winSound(){ [600,900,1200].forEach((f,i)=>tone(f,.2,.12,i*.08)); }
 
-/* ================= CONFETTI ================= */
+/* CONFETTI */
 function confetti(){
   for(let i=0;i<80;i++){
     const c=document.createElement("div");
@@ -266,14 +269,14 @@ function confetti(){
   }
 }
 
-/* ================= WHEEL ================= */
+/* WHEEL */
 let prizes=[],rotation=0,slices=[];
 async function loadPrizes(){
   try{
-    const res=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`);
-    const txt=await res.text();
-    const json=JSON.parse(txt.substr(47).slice(0,-2));
-    prizes=json.table.rows.map(r=>r.c[0]?.v).filter(Boolean);
+    const r=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`);
+    const t=await r.text();
+    const j=JSON.parse(t.substr(47).slice(0,-2));
+    prizes=j.table.rows.map(r=>r.c[0]?.v).filter(Boolean);
   }catch{}
   if(!prizes.length) prizes=["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
   drawWheel();
@@ -282,29 +285,45 @@ async function loadPrizes(){
 function drawWheel(){
   wheelSVG.innerHTML=""; slices=[];
   const cx=250,cy=250,r=240,step=2*Math.PI/prizes.length;
+
   prizes.forEach((label,i)=>{
     const a=i*step,b=a+step;
-    const p=document.createElementNS("http://www.w3.org/2000/svg","path");
-    p.setAttribute("d",`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
+    const id=`slice${i}`;
+
+    const clip=document.createElementNS("http://www.w3.org/2000/svg","clipPath");
+    clip.setAttribute("id",id);
+    const cp=document.createElementNS("http://www.w3.org/2000/svg","path");
+    cp.setAttribute("d",`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
       A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`);
+    clip.appendChild(cp);
+    wheelSVG.appendChild(clip);
+
+    const p=document.createElementNS("http://www.w3.org/2000/svg","path");
+    p.setAttribute("d",cp.getAttribute("d"));
     p.setAttribute("fill",`hsl(${i/prizes.length*360},75%,55%)`);
-    wheelSVG.appendChild(p); slices.push(p);
+    wheelSVG.appendChild(p);
+    slices.push(p);
 
     const ang=a+step/2;
-    const t=document.createElementNS("http://www.w3.org/2000/svg","text");
-    t.textContent=label;
-    t.setAttribute("x",cx+(r-40)*Math.cos(ang));
-    t.setAttribute("y",cy+(r-40)*Math.sin(ang));
-    t.setAttribute("fill","white");
-    t.setAttribute("font-size","16");
-    t.setAttribute("text-anchor","middle");
-    t.setAttribute("dominant-baseline","middle");
-    t.setAttribute("transform",`rotate(${ang*180/Math.PI},${t.getAttribute("x")},${t.getAttribute("y")})`);
-    wheelSVG.appendChild(t);
+    const fx=cx+(r-80)*Math.cos(ang)-55;
+    const fy=cy+(r-80)*Math.sin(ang)-60;
+
+    const fo=document.createElementNS("http://www.w3.org/2000/svg","foreignObject");
+    fo.setAttribute("x",fx);
+    fo.setAttribute("y",fy);
+    fo.setAttribute("width",110);
+    fo.setAttribute("height",120);
+    fo.setAttribute("clip-path",`url(#${id})`);
+
+    const div=document.createElement("div");
+    div.className="slice-text";
+    div.innerText=label;
+    fo.appendChild(div);
+    wheelSVG.appendChild(fo);
   });
 }
 
-/* ================= SPIN ================= */
+/* SPIN */
 function spinWheel(){
   const name=nameInput.value.trim();
   if(!name){ showWarning(); return; }
@@ -327,11 +346,10 @@ function spinWheel(){
   },4000);
 }
 
-/* ================= LOG ================= */
-function logResult(name,prize){
+function logResult(n,p){
   const d=new FormData();
-  d.append("entry.2073447998",name);
-  d.append("entry.147622954",prize);
+  d.append("entry.2073447998",n);
+  d.append("entry.147622954",p);
   d.append("entry.1151054090",new Date().toISOString());
   fetch(FORM_ENDPOINT,{method:"POST",body:d,mode:"no-cors"});
 }
