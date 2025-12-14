@@ -23,11 +23,7 @@ body{
   display:flex;
   justify-content:center;
 }
-
-body.light{
-  background:var(--bg-light);
-  color:var(--text-light);
-}
+body.light{background:var(--bg-light);color:var(--text-light)}
 
 .container{
   width:100%;
@@ -82,9 +78,7 @@ body.light{
     0 12px 30px rgba(0,0,0,.5);
 }
 
-.slice-win{
-  filter:drop-shadow(0 0 18px rgba(255,255,255,.95));
-}
+.slice-win{filter:drop-shadow(0 0 18px rgba(255,255,255,.95))}
 
 #hub{
   position:absolute;
@@ -104,36 +98,25 @@ body.light{
   flex-direction:column;
   gap:10px;
 }
-
-label{
-  text-align:left;
-  font-weight:600;
-}
-
+label{text-align:left;font-weight:600}
 input,button.spin{
   width:100%;
   padding:8px;
   font-size:14px;
   border-radius:8px;
   border:none;
-  box-sizing:border-box;
 }
-
 button.spin{
   background:var(--accent);
   color:#fff;
   cursor:pointer;
 }
-
 button.spin:disabled{
   opacity:.5;
   cursor:not-allowed;
 }
 
-#result{
-  margin-top:12px;
-  font-weight:700;
-}
+#result{margin-top:12px;font-weight:700}
 
 /* ===== SLICE TEXT ===== */
 .slice-text{
@@ -151,7 +134,7 @@ button.spin:disabled{
 }
 
 /* ===== MODAL ===== */
-#warningModal{
+#modal{
   position:fixed;
   inset:0;
   background:rgba(0,0,0,.6);
@@ -161,18 +144,18 @@ button.spin:disabled{
   z-index:9999;
 }
 
-.warning-box{
+.modal-box{
   background:white;
   color:#222;
   padding:24px;
   border-radius:16px;
   width:85%;
-  max-width:300px;
+  max-width:320px;
   text-align:center;
   animation:pop .25s ease-out;
 }
 
-.warning-box button{
+.modal-box button{
   margin-top:14px;
   padding:10px 18px;
   border-radius:8px;
@@ -211,57 +194,68 @@ button.spin:disabled{
   <div id="result"></div>
 </div>
 
-<div id="warningModal">
-  <div class="warning-box">
-    <h3>⚠️ Oops</h3>
-    <p>Please enter your name to spin</p>
-    <button onclick="closeWarning()">OK</button>
+<div id="modal">
+  <div class="modal-box">
+    <p id="modalText"></p>
+    <button onclick="closeModal()">OK</button>
   </div>
 </div>
 
 <script>
-const SHEET_ID="19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
-const FORM_ENDPOINT="https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
+/* ================= CONFIG ================= */
+const MAX_SPINS = 3;
+const RESET_HOURS = 24;
+const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
+const FORM_ENDPOINT = "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
-let soundOn=true,spinning=false;
+/* ================= STATE ================= */
+let soundOn = true;
+let spinning = false;
 
-/* UI */
+/* ================= STORAGE ================= */
+function getSpinData(){
+  const data = JSON.parse(localStorage.getItem("spinData")) || { count:0, last:null };
+  if (data.last && Date.now() - data.last >= RESET_HOURS*3600000) {
+    return { count:0, last:null };
+  }
+  return data;
+}
+function saveSpinData(data){
+  localStorage.setItem("spinData", JSON.stringify(data));
+}
+
+/* ================= UI ================= */
 function toggleTheme(){document.body.classList.toggle("light")}
 function toggleSound(){
-  soundOn=!soundOn;
-  document.querySelector(".sound-toggle").textContent=soundOn?"🔊":"🔇";
+  soundOn = !soundOn;
+  document.querySelector(".sound-toggle").textContent = soundOn ? "🔊" : "🔇";
 }
-function showWarning(){warningModal.style.display="flex";vibrate(200)}
-function closeWarning(){warningModal.style.display="none";nameInput.focus()}
-function vibrate(ms){navigator.vibrate&&navigator.vibrate(ms)}
+function showModal(text){
+  modalText.innerText = text;
+  modal.style.display = "flex";
+}
+function closeModal(){modal.style.display = "none"}
+function vibrate(ms){navigator.vibrate && navigator.vibrate(ms)}
 
-/* AUDIO */
-const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+/* ================= AUDIO ================= */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let tickTimer;
 function tone(f,d,v){
   if(!soundOn)return;
-  const o=audioCtx.createOscillator();
-  const g=audioCtx.createGain();
-  o.frequency.value=f;
-  g.gain.value=v;
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.frequency.value=f;g.gain.value=v;
   o.connect(g).connect(audioCtx.destination);
-  o.start();
-  o.stop(audioCtx.currentTime+d);
+  o.start();o.stop(audioCtx.currentTime+d);
 }
-function startSpinSound(){
-  if(!soundOn)return;
-  tickTimer=setInterval(()=>tone(480,.03,.05),120);
-}
+function startSpinSound(){tickTimer=setInterval(()=>tone(480,.03,.05),120)}
 function stopSpinSound(){clearInterval(tickTimer)}
-function winSound(){
-  [600,900,1200].forEach((f,i)=>setTimeout(()=>tone(f,.2,.12),i*80));
-}
+function winSound(){[600,900,1200].forEach((f,i)=>setTimeout(()=>tone(f,.2,.12),i*80))}
 function confettiSound(){tone(1500,.15,.15)}
 
-/* CONFETTI */
+/* ================= CONFETTI ================= */
 function confetti(){
   confettiSound();
-  for(let i=0;i<80;i++){
+  for(let i=0;i<70;i++){
     const c=document.createElement("div");
     c.style.position="fixed";
     c.style.left=Math.random()*100+"vw";
@@ -271,20 +265,17 @@ function confetti(){
     c.style.borderRadius="50%";
     c.style.background=`hsl(${Math.random()*360},80%,60%)`;
     document.body.appendChild(c);
-    c.animate(
-      [{transform:"translateY(0)"},{transform:`translateY(${innerHeight+100}px)`}],
+    c.animate([{transform:"translateY(0)"},{transform:`translateY(${innerHeight+100}px)`}],
       {duration:1800+Math.random()*1200,easing:"ease-out"}
     ).onfinish=()=>c.remove();
   }
 }
 
-/* WHEEL */
+/* ================= WHEEL ================= */
 let prizes=[],rotation=0,slices=[];
 async function loadPrizes(){
   try{
-    const r=await fetch(
-      `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`
-    );
+    const r=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`);
     const t=await r.text();
     const j=JSON.parse(t.substr(47).slice(0,-2));
     prizes=j.table.rows.map(r=>r.c[0]?.v).filter(Boolean);
@@ -294,39 +285,31 @@ async function loadPrizes(){
 }
 
 function drawWheel(){
-  wheelSVG.innerHTML="";
-  slices=[];
+  wheelSVG.innerHTML="";slices=[];
   const cx=250,cy=250,r=240,step=2*Math.PI/prizes.length;
-
   prizes.forEach((label,i)=>{
     const a=i*step,b=a+step,id=`s${i}`;
-
     const clip=document.createElementNS("http://www.w3.org/2000/svg","clipPath");
     clip.id=id;
     const cp=document.createElementNS("http://www.w3.org/2000/svg","path");
-    cp.setAttribute("d",
-      `M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
-       A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`);
-    clip.appendChild(cp);
-    wheelSVG.appendChild(clip);
+    cp.setAttribute("d",`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
+      A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`);
+    clip.appendChild(cp);wheelSVG.appendChild(clip);
 
     const p=document.createElementNS("http://www.w3.org/2000/svg","path");
     p.setAttribute("d",cp.getAttribute("d"));
     p.setAttribute("fill",`hsl(${i/prizes.length*360},75%,55%)`);
-    wheelSVG.appendChild(p);
-    slices.push(p);
+    wheelSVG.appendChild(p);slices.push(p);
 
     const ang=a+step/2;
     const fx=cx+(r-90)*Math.cos(ang)-65;
     const fy=cy+(r-90)*Math.sin(ang)-70;
-
     const fo=document.createElementNS("http://www.w3.org/2000/svg","foreignObject");
     fo.setAttribute("x",fx);
     fo.setAttribute("y",fy);
     fo.setAttribute("width",130);
     fo.setAttribute("height",140);
     fo.setAttribute("clip-path",`url(#${id})`);
-
     const div=document.createElement("div");
     div.className="slice-text";
     div.innerText=label;
@@ -335,19 +318,27 @@ function drawWheel(){
   });
 }
 
-/* SPIN */
+/* ================= SPIN ================= */
 function spinWheel(){
   if(spinning)return;
+
   const name=nameInput.value.trim();
-  if(!name){showWarning();return}
+  if(!name){
+    showModal("Please enter your name to spin.");
+    return;
+  }
+
+  const data=getSpinData();
+  if(data.count>=MAX_SPINS){
+    showModal("Oops! You have exhausted your total limit of spins for today, please try again after 24 hours.");
+    return;
+  }
 
   spinning=true;
   spinBtn.disabled=true;
-
   audioCtx.resume();
   vibrate(50);
   startSpinSound();
-  slices.forEach(s=>s.classList.remove("slice-win"));
 
   const spins=Math.random()*360+1800;
   rotation+=spins;
@@ -359,20 +350,32 @@ function spinWheel(){
     stopSpinSound();
     winSound();
     confetti();
-    vibrate([100,50,100]);
 
     const norm=(360-((rotation+90)%360)+360)%360;
     const idx=Math.floor(norm/sliceDeg);
+    const prize=prizes[idx];
 
     slices[idx].classList.add("slice-win");
-    result.textContent=`${name} won ${prizes[idx]} 🎉`;
-    logResult(name,prizes[idx]);
+    result.textContent=`${name} won ${prize} 🎉`;
+    logResult(name,prize);
+
+    data.count++;
+    if(data.count===MAX_SPINS) data.last=Date.now();
+    saveSpinData(data);
+
+    const remaining = MAX_SPINS - data.count;
+    showModal(
+      remaining>0
+      ? `Congratulations on winning ${prize}, but you can try ${remaining} more time(s) if you weren't happy with what you got.`
+      : `Congratulations on winning ${prize}! This was your final spin for today.`
+    );
 
     spinning=false;
     spinBtn.disabled=false;
   },4000);
 }
 
+/* ================= LOG ================= */
 function logResult(n,p){
   const d=new FormData();
   d.append("entry.2073447998",n);
