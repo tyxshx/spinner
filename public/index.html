@@ -16,7 +16,7 @@
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: system-ui, sans-serif;
   min-height: 100vh;
   background: var(--bg-dark);
   color: var(--text-dark);
@@ -31,7 +31,7 @@ body.light {
 
 .container {
   width: 100%;
-  max-width: 420px;
+  max-width: 520px;
   padding: 18px;
   text-align: center;
 }
@@ -47,25 +47,25 @@ body.light {
   font-size: 16px;
 }
 
-/* Wheel */
+/* ===== WHEEL (50% BIGGER) ===== */
 #wheelWrap {
   position: relative;
-  width: 320px;
-  height: 320px;
+  width: 480px;
+  height: 480px;
   margin: 30px auto 22px;
 }
 
-/* 3D Pointer */
+/* Pointer */
 #pointer {
   position: absolute;
-  top: -14px;
+  top: -18px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 18px solid transparent;
-  border-right: 18px solid transparent;
-  border-top: 36px solid var(--accent);
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-top: 44px solid var(--accent);
   filter: drop-shadow(0 4px 6px rgba(0,0,0,.6))
           drop-shadow(0 0 8px rgba(255,77,77,.8));
   z-index: 10;
@@ -77,69 +77,70 @@ body.light {
   border-radius: 50%;
   transition: transform 4s cubic-bezier(.25,.8,.25,1);
   box-shadow:
-    inset 0 8px 12px rgba(255,255,255,.15),
-    inset 0 -12px 18px rgba(0,0,0,.35),
-    0 12px 30px rgba(0,0,0,.5);
+    inset 0 10px 16px rgba(255,255,255,.15),
+    inset 0 -18px 26px rgba(0,0,0,.35),
+    0 14px 36px rgba(0,0,0,.55);
 }
 
 .slice-win {
-  filter: drop-shadow(0 0 16px rgba(255,255,255,.95));
+  filter: drop-shadow(0 0 18px rgba(255,255,255,.95));
 }
 
+/* Center Hub */
 #hub {
   position: absolute;
   inset: 50%;
-  width: 28px;
-  height: 28px;
-  background: radial-gradient(circle at 30% 30%, #fff, #bbb);
+  width: 36px;
+  height: 36px;
+  background: radial-gradient(circle at 30% 30%, #fff, #aaa);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  box-shadow: 0 4px 6px rgba(0,0,0,.6);
+  box-shadow: 0 6px 10px rgba(0,0,0,.6);
   z-index: 6;
 }
 
-/* Form */
+/* ===== FORM (HALF SIZE) ===== */
 label {
   display: block;
   text-align: left;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   font-weight: 600;
 }
 
 input, button.spin {
   width: 100%;
-  padding: 14px;
-  font-size: 16px;
-  border-radius: 10px;
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 8px;
   border: none;
   box-sizing: border-box;
 }
 
 input {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 button.spin {
-  font-size: 18px;
+  font-size: 15px;
   background: var(--accent);
   color: white;
   cursor: pointer;
 }
 
 #result {
-  margin-top: 16px;
+  margin-top: 12px;
   font-weight: 700;
 }
 
 /* Wrapped SVG text */
 .slice-text {
-  width: 110px;
-  height: 120px;
+  width: 150px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.2;
   font-weight: 600;
   color: white;
@@ -220,35 +221,30 @@ const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
 const FORM_ENDPOINT =
 "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
-function toggleTheme() {
-  document.body.classList.toggle("light");
-}
+function toggleTheme(){document.body.classList.toggle("light")}
+function vibrate(ms){if(navigator.vibrate)navigator.vibrate(ms)}
 
-function vibrate(ms) {
-  if (navigator.vibrate) navigator.vibrate(ms);
-}
-
-function showWarning() {
-  warningModal.style.display = "flex";
+function showWarning(){
+  warningModal.style.display="flex";
   vibrate(200);
 }
-function closeWarning() {
-  warningModal.style.display = "none";
+function closeWarning(){
+  warningModal.style.display="none";
   nameInput.focus();
 }
 
 /* AUDIO */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
 function tone(f,d,v,t=0){
   const o=audioCtx.createOscillator();
   const g=audioCtx.createGain();
-  o.frequency.value=f; g.gain.value=v;
+  o.frequency.value=f;g.gain.value=v;
   o.connect(g).connect(audioCtx.destination);
   o.start(audioCtx.currentTime+t);
   o.stop(audioCtx.currentTime+t+d);
 }
-function clickSound(){ tone(900,.05,.08); }
-function winSound(){ [600,900,1200].forEach((f,i)=>tone(f,.2,.12,i*.08)); }
+function clickSound(){tone(900,.05,.08)}
+function winSound(){[600,900,1200].forEach((f,i)=>tone(f,.2,.12,i*.08))}
 
 /* CONFETTI */
 function confetti(){
@@ -278,66 +274,52 @@ async function loadPrizes(){
     const j=JSON.parse(t.substr(47).slice(0,-2));
     prizes=j.table.rows.map(r=>r.c[0]?.v).filter(Boolean);
   }catch{}
-  if(!prizes.length) prizes=["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
+  if(!prizes.length)prizes=["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
   drawWheel();
 }
 
 function drawWheel(){
-  wheelSVG.innerHTML=""; slices=[];
+  wheelSVG.innerHTML="";slices=[];
   const cx=250,cy=250,r=240,step=2*Math.PI/prizes.length;
-
   prizes.forEach((label,i)=>{
-    const a=i*step,b=a+step;
-    const id=`slice${i}`;
-
+    const a=i*step,b=a+step,id=`s${i}`;
     const clip=document.createElementNS("http://www.w3.org/2000/svg","clipPath");
-    clip.setAttribute("id",id);
+    clip.id=id;
     const cp=document.createElementNS("http://www.w3.org/2000/svg","path");
     cp.setAttribute("d",`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
       A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`);
-    clip.appendChild(cp);
-    wheelSVG.appendChild(clip);
+    clip.appendChild(cp);wheelSVG.appendChild(clip);
 
     const p=document.createElementNS("http://www.w3.org/2000/svg","path");
     p.setAttribute("d",cp.getAttribute("d"));
     p.setAttribute("fill",`hsl(${i/prizes.length*360},75%,55%)`);
-    wheelSVG.appendChild(p);
-    slices.push(p);
+    wheelSVG.appendChild(p);slices.push(p);
 
     const ang=a+step/2;
-    const fx=cx+(r-80)*Math.cos(ang)-55;
-    const fy=cy+(r-80)*Math.sin(ang)-60;
-
+    const fx=cx+(r-100)*Math.cos(ang)-75;
+    const fy=cy+(r-100)*Math.sin(ang)-80;
     const fo=document.createElementNS("http://www.w3.org/2000/svg","foreignObject");
-    fo.setAttribute("x",fx);
-    fo.setAttribute("y",fy);
-    fo.setAttribute("width",110);
-    fo.setAttribute("height",120);
+    fo.setAttribute("x",fx);fo.setAttribute("y",fy);
+    fo.setAttribute("width",150);fo.setAttribute("height",160);
     fo.setAttribute("clip-path",`url(#${id})`);
-
     const div=document.createElement("div");
     div.className="slice-text";
     div.innerText=label;
-    fo.appendChild(div);
-    wheelSVG.appendChild(fo);
+    fo.appendChild(div);wheelSVG.appendChild(fo);
   });
 }
 
-/* SPIN */
 function spinWheel(){
   const name=nameInput.value.trim();
-  if(!name){ showWarning(); return; }
-
-  audioCtx.resume(); vibrate(50); clickSound();
+  if(!name){showWarning();return}
+  audioCtx.resume();vibrate(50);clickSound();
   slices.forEach(s=>s.classList.remove("slice-win"));
-
   const spins=Math.random()*360+1800;
   rotation+=spins;
   wheelSVG.style.transform=`rotate(${rotation}deg)`;
-
   const sliceDeg=360/prizes.length;
   setTimeout(()=>{
-    winSound(); vibrate([100,50,100]); confetti();
+    winSound();vibrate([100,50,100]);confetti();
     const norm=(360-((rotation+90)%360)+360)%360;
     const idx=Math.floor(norm/sliceDeg);
     slices[idx].classList.add("slice-win");
