@@ -3,166 +3,170 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Spin Wheel</title>
+<title>Spin the Wheel</title>
 
 <style>
+:root {
+  --bg-light: linear-gradient(135deg, #f5f7fa, #e4ebf5);
+  --bg-dark: linear-gradient(135deg, #0f1220, #1b1f36);
+  --text-light: #222;
+  --text-dark: #fff;
+}
+
 body {
   margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0f1220;
-  color: white;
+  font-family: system-ui, sans-serif;
+  background: var(--bg-dark);
+  color: var(--text-dark);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+}
+
+body.light {
+  background: var(--bg-light);
+  color: var(--text-light);
+}
+
+.container {
+  width: 100%;
+  max-width: 420px;
+  padding: 16px;
   text-align: center;
 }
 
-#wheelWrapper {
+/* Theme toggle */
+.theme-toggle {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: none;
+  cursor: pointer;
+}
+
+/* Wheel */
+#wheelWrap {
+  position: relative;
   width: 320px;
   height: 320px;
-  margin: 30px auto;
-  position: relative;
+  margin: 20px auto;
 }
 
 #pointer {
   position: absolute;
-  top: -12px;
+  top: 0;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 12px solid transparent;
-  border-right: 12px solid transparent;
-  border-bottom: 20px solid white;
-  z-index: 10;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 26px solid currentColor;
+  z-index: 5;
 }
 
 #wheelSVG {
   width: 100%;
   height: 100%;
-  transition: transform 3.8s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transition: transform 4s cubic-bezier(.25,.8,.25,1);
 }
 
-button {
-  padding: 12px 18px;
-  font-size: 16px;
+/* Controls */
+input {
+  width: 100%;
+  padding: 12px;
   border-radius: 8px;
   border: none;
+  margin-bottom: 12px;
+}
+
+button.spin {
+  width: 100%;
+  padding: 14px;
+  border-radius: 10px;
+  border: none;
+  font-size: 18px;
+  background: #ff4d4d;
+  color: white;
   cursor: pointer;
 }
 
-#spinBtn {
-  background: #ff4d4d;
-  color: white;
-}
-
-#adminLogin {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.7);
-  display: none;
-  align-items: center;
-  justify-content: center;
-}
-
-#adminBox {
-  background: #1a1d35;
-  padding: 25px;
-  border-radius: 10px;
-  width: 260px;
-}
-
-input {
-  width: 100%;
-  padding: 10px;
-  margin-top: 10px;
-  border-radius: 6px;
-  border: none;
+#result {
+  margin-top: 14px;
+  font-weight: bold;
 }
 </style>
 </head>
 
 <body>
+<button class="theme-toggle" onclick="toggleTheme()">🌓</button>
 
-<h1>Spin & Win 🎉</h1>
+<div class="container">
+  <h2>Spin the Wheel 🎉</h2>
 
-<div id="wheelWrapper">
-  <div id="pointer"></div>
-  <svg id="wheelSVG" viewBox="0 0 500 500"></svg>
-</div>
-
-<input id="nameInput" placeholder="Your name" />
-<br><br>
-<button id="spinBtn">SPIN</button>
-
-<div id="result"></div>
-
-<!-- Admin Login -->
-<div id="adminLogin">
-  <div id="adminBox">
-    <h3>Admin Login</h3>
-    <input id="adminUser" placeholder="Username" />
-    <input id="adminPass" type="password" placeholder="Password" />
-    <br><br>
-    <button onclick="loginAdmin()">Login</button>
+  <div id="wheelWrap">
+    <div id="pointer"></div>
+    <svg id="wheelSVG" viewBox="0 0 500 500"></svg>
   </div>
+
+  <input id="nameInput" placeholder="Enter your name" />
+  <button class="spin" onclick="spinWheel()">Spin the Wheel</button>
+
+  <div id="result"></div>
 </div>
 
 <script>
-/* =========================
-   ADMIN AUTH
-========================= */
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD_HASH =
-"8b9d2f3b7e4f0c6d35b88c1c5d4b5fdbbfc6b84e2c9f6c6c1caa8b0c6a0b6f1c";
+/* ==============================
+   CONFIG
+============================== */
+const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
+const FORM_ENDPOINT =
+"https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
-async function sha256(str) {
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(str)
-  );
-  return Array.from(new Uint8Array(buf))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
+/* ==============================
+   THEME
+============================== */
+function toggleTheme() {
+  document.body.classList.toggle("light");
 }
 
-async function loginAdmin() {
-  const u = adminUser.value.trim();
-  const p = adminPass.value;
-
-  if (u !== ADMIN_USERNAME) return alert("Wrong username");
-
-  const h = await sha256(p);
-  if (h !== ADMIN_PASSWORD_HASH) return alert("Wrong password");
-
-  alert("Admin logged in");
-  adminLogin.style.display = "none";
-}
-
-/* =========================
-   WHEEL DATA
-========================= */
+/* ==============================
+   LOAD PRIZES
+============================== */
 let prizes = [];
 let rotation = 0;
 
-/* Fallback prizes if admin list empty */
-function getActivePrizes() {
-  if (!prizes || prizes.length === 0) {
-    return ["Prize 1","Prize 2","Prize 3","Prize 4","Prize 5","Prize 6"];
+async function loadPrizes() {
+  try {
+    const url =
+      `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`;
+    const res = await fetch(url);
+    const text = await res.text();
+    const json = JSON.parse(text.substr(47).slice(0, -2));
+    prizes = json.table.rows.map(r => r.c[0]?.v).filter(Boolean);
+  } catch {
+    prizes = [];
   }
-  return prizes;
+
+  if (prizes.length === 0) {
+    prizes = ["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
+  }
+  drawWheel();
 }
 
-/* =========================
-   SVG WHEEL
-========================= */
+/* ==============================
+   DRAW SVG WHEEL
+============================== */
 function drawWheel() {
   const svg = document.getElementById("wheelSVG");
   svg.innerHTML = "";
 
-  const list = getActivePrizes();
-  const count = list.length;
   const cx = 250, cy = 250, r = 240;
-  const slice = (2 * Math.PI) / count;
+  const slice = 2 * Math.PI / prizes.length;
 
-  list.forEach((label, i) => {
+  prizes.forEach((label, i) => {
     const start = i * slice;
     const end = start + slice;
 
@@ -172,23 +176,18 @@ function drawWheel() {
     const y2 = cy + r * Math.sin(end);
 
     const path = document.createElementNS("http://www.w3.org/2000/svg","path");
-    path.setAttribute(
-      "d",
-      `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`
-    );
-
-    path.setAttribute(
-      "fill",
-      `hsl(${(i / count) * 360}, 75%, 55%)`
-    );
-
+    path.setAttribute("d",
+      `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2} Z`);
+    path.setAttribute("fill",
+      `hsl(${(i / prizes.length) * 360}, 75%, 55%)`);
     svg.appendChild(path);
 
     const angle = start + slice / 2;
-    const tx = cx + (r - 45) * Math.cos(angle);
-    const ty = cy + (r - 45) * Math.sin(angle);
+    const tx = cx + (r - 40) * Math.cos(angle);
+    const ty = cy + (r - 40) * Math.sin(angle);
 
     const text = document.createElementNS("http://www.w3.org/2000/svg","text");
+    text.textContent = label;
     text.setAttribute("x", tx);
     text.setAttribute("y", ty);
     text.setAttribute("fill", "white");
@@ -197,47 +196,49 @@ function drawWheel() {
     text.setAttribute("dominant-baseline", "middle");
     text.setAttribute(
       "transform",
-      `rotate(${(angle * 180 / Math.PI)}, ${tx}, ${ty})`
+      `rotate(${angle * 180 / Math.PI}, ${tx}, ${ty})`
     );
-    text.textContent = label;
-
     svg.appendChild(text);
   });
 }
 
-drawWheel();
-
-/* =========================
-   SPIN
-========================= */
-spinBtn.onclick = () => {
+/* ==============================
+   SPIN + LOG
+============================== */
+function spinWheel() {
   const name = nameInput.value.trim();
-  if (!name) return alert("Enter name");
+  if (!name) return alert("Enter your name");
 
-  const list = getActivePrizes();
   const spins = Math.random() * 360 + 1800;
   rotation += spins;
-
   wheelSVG.style.transform = `rotate(${rotation}deg)`;
 
-  const slice = 360 / list.length;
+  const sliceDeg = 360 / prizes.length;
   const index = Math.floor(
-    ((360 - (rotation % 360)) % 360) / slice
+    ((360 - (rotation % 360)) % 360) / sliceDeg
   );
 
   setTimeout(() => {
-    result.innerHTML =
-      `<b>${name}</b> won <b>${list[index]}</b> 🎉`;
-  }, 3800);
-};
+    const prize = prizes[index];
+    result.textContent = `${name} won ${prize} 🎉`;
+    logResult(name, prize);
+  }, 4000);
+}
 
-/* Hidden admin trigger */
-document.addEventListener("keydown", e => {
-  if (e.shiftKey && e.key === "A") {
-    adminLogin.style.display = "flex";
-  }
-});
+/* ==============================
+   GOOGLE FORM LOG
+============================== */
+function logResult(name, prize) {
+  const data = new FormData();
+  data.append("entry.2073447998", name);
+  data.append("entry.147622954", prize);
+  data.append("entry.1151054090", new Date().toISOString());
+
+  fetch(FORM_ENDPOINT, { method: "POST", body: data, mode: "no-cors" });
+}
+
+/* INIT */
+loadPrizes();
 </script>
-
 </body>
 </html>
