@@ -92,20 +92,25 @@ body.light{background:var(--bg-light);color:var(--text-light)}
   z-index:6;
 }
 
-/* ===== FORM ===== */
+/* ===== FORM (FIXED WIDTH ISSUE) ===== */
 .form-group{
   display:flex;
   flex-direction:column;
   gap:10px;
+  width:100%;
 }
+
 label{text-align:left;font-weight:600}
+
 input,button.spin{
   width:100%;
   padding:8px;
   font-size:14px;
   border-radius:8px;
   border:none;
+  box-sizing:border-box;
 }
+
 button.spin{
   background:var(--accent);
   color:#fff;
@@ -150,7 +155,7 @@ button.spin:disabled{
   padding:24px;
   border-radius:16px;
   width:85%;
-  max-width:320px;
+  max-width:340px;
   text-align:center;
   animation:pop .25s ease-out;
 }
@@ -205,17 +210,15 @@ button.spin:disabled{
 /* ================= CONFIG ================= */
 const MAX_SPINS = 3;
 const RESET_HOURS = 24;
-const SHEET_ID = "19YjtZAaasx8_xzSC-TJje7yxT00g3HcjloaLK31bjKY";
-const FORM_ENDPOINT = "https://docs.google.com/forms/d/e/1FAIpQLScmIOGE31UP637G0UNNnxXIFMt33ECnIc4vk3QyyYE86yi8og/formResponse";
 
 /* ================= STATE ================= */
 let soundOn = true;
 let spinning = false;
 
-/* ================= STORAGE ================= */
+/* ================= SPIN STORAGE ================= */
 function getSpinData(){
   const data = JSON.parse(localStorage.getItem("spinData")) || { count:0, last:null };
-  if (data.last && Date.now() - data.last >= RESET_HOURS*3600000) {
+  if (data.last && Date.now() - data.last >= RESET_HOURS * 3600000) {
     return { count:0, last:null };
   }
   return data;
@@ -223,6 +226,20 @@ function getSpinData(){
 function saveSpinData(data){
   localStorage.setItem("spinData", JSON.stringify(data));
 }
+function resetSpinLimit(){
+  localStorage.removeItem("spinData");
+}
+
+/* ================= SECRET KEYBOARD RESET ================= */
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey && e.shiftKey && e.code === "KeyA") {
+    document.addEventListener("keydown", e2 => {
+      if (e2.code === "KeyD") {
+        resetSpinLimit();
+      }
+    }, { once:true });
+  }
+});
 
 /* ================= UI ================= */
 function toggleTheme(){document.body.classList.toggle("light")}
@@ -231,7 +248,7 @@ function toggleSound(){
   document.querySelector(".sound-toggle").textContent = soundOn ? "🔊" : "🔇";
 }
 function showModal(text){
-  modalText.innerText = text;
+  modalText.textContent = text;
   modal.style.display = "flex";
 }
 function closeModal(){modal.style.display = "none"}
@@ -265,58 +282,47 @@ function confetti(){
     c.style.borderRadius="50%";
     c.style.background=`hsl(${Math.random()*360},80%,60%)`;
     document.body.appendChild(c);
-    c.animate([{transform:"translateY(0)"},{transform:`translateY(${innerHeight+100}px)`}],
+    c.animate(
+      [{transform:"translateY(0)"},{transform:`translateY(${innerHeight+100}px)`}],
       {duration:1800+Math.random()*1200,easing:"ease-out"}
     ).onfinish=()=>c.remove();
   }
 }
 
 /* ================= WHEEL ================= */
-let prizes=[],rotation=0,slices=[];
-async function loadPrizes(){
-  try{
-    const r=await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=PrizeList`);
-    const t=await r.text();
-    const j=JSON.parse(t.substr(47).slice(0,-2));
-    prizes=j.table.rows.map(r=>r.c[0]?.v).filter(Boolean);
-  }catch{}
-  if(!prizes.length)prizes=["Prize A","Prize B","Prize C","Prize D"];
-  drawWheel();
-}
+let prizes=["Prize A","Prize B","Prize C","Prize D","Prize E","Prize F"];
+let rotation=0,slices=[];
 
 function drawWheel(){
-  wheelSVG.innerHTML="";slices=[];
+  wheelSVG.innerHTML="";
+  slices=[];
   const cx=250,cy=250,r=240,step=2*Math.PI/prizes.length;
+
   prizes.forEach((label,i)=>{
-    const a=i*step,b=a+step,id=`s${i}`;
-    const clip=document.createElementNS("http://www.w3.org/2000/svg","clipPath");
-    clip.id=id;
-    const cp=document.createElementNS("http://www.w3.org/2000/svg","path");
-    cp.setAttribute("d",`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
-      A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`);
-    clip.appendChild(cp);wheelSVG.appendChild(clip);
+    const a=i*step,b=a+step;
+    const path=`M${cx} ${cy} L${cx+r*Math.cos(a)} ${cy+r*Math.sin(a)}
+      A${r} ${r} 0 0 1 ${cx+r*Math.cos(b)} ${cy+r*Math.sin(b)} Z`;
 
     const p=document.createElementNS("http://www.w3.org/2000/svg","path");
-    p.setAttribute("d",cp.getAttribute("d"));
+    p.setAttribute("d",path);
     p.setAttribute("fill",`hsl(${i/prizes.length*360},75%,55%)`);
-    wheelSVG.appendChild(p);slices.push(p);
+    wheelSVG.appendChild(p);
+    slices.push(p);
 
     const ang=a+step/2;
-    const fx=cx+(r-90)*Math.cos(ang)-65;
-    const fy=cy+(r-90)*Math.sin(ang)-70;
     const fo=document.createElementNS("http://www.w3.org/2000/svg","foreignObject");
-    fo.setAttribute("x",fx);
-    fo.setAttribute("y",fy);
+    fo.setAttribute("x",cx+(r-90)*Math.cos(ang)-65);
+    fo.setAttribute("y",cy+(r-90)*Math.sin(ang)-70);
     fo.setAttribute("width",130);
     fo.setAttribute("height",140);
-    fo.setAttribute("clip-path",`url(#${id})`);
     const div=document.createElement("div");
     div.className="slice-text";
-    div.innerText=label;
+    div.textContent=label;
     fo.appendChild(div);
     wheelSVG.appendChild(fo);
   });
 }
+drawWheel();
 
 /* ================= SPIN ================= */
 function spinWheel(){
@@ -336,6 +342,7 @@ function spinWheel(){
 
   spinning=true;
   spinBtn.disabled=true;
+
   audioCtx.resume();
   vibrate(50);
   startSpinSound();
@@ -355,36 +362,23 @@ function spinWheel(){
     const idx=Math.floor(norm/sliceDeg);
     const prize=prizes[idx];
 
-    slices[idx].classList.add("slice-win");
     result.textContent=`${name} won ${prize} 🎉`;
-    logResult(name,prize);
 
     data.count++;
     if(data.count===MAX_SPINS) data.last=Date.now();
     saveSpinData(data);
 
-    const remaining = MAX_SPINS - data.count;
+    const remaining=MAX_SPINS-data.count;
     showModal(
       remaining>0
-      ? `Congratulations on winning ${prize}, but you can try ${remaining} more time(s) if you weren't happy with what you got.`
-      : `Congratulations on winning ${prize}! This was your final spin for today.`
+        ? `Congratulations on winning ${prize}, but you can try ${remaining} more time(s) if you weren't happy with what you got.`
+        : `Congratulations on winning ${prize}! This was your final spin for today.`
     );
 
     spinning=false;
     spinBtn.disabled=false;
   },4000);
 }
-
-/* ================= LOG ================= */
-function logResult(n,p){
-  const d=new FormData();
-  d.append("entry.2073447998",n);
-  d.append("entry.147622954",p);
-  d.append("entry.1151054090",new Date().toISOString());
-  fetch(FORM_ENDPOINT,{method:"POST",body:d,mode:"no-cors"});
-}
-
-loadPrizes();
 </script>
 </body>
 </html>
