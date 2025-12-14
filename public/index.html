@@ -11,6 +11,7 @@
   --bg-light: linear-gradient(135deg, #f3f6fb, #e4ebf5);
   --text-dark: #ffffff;
   --text-light: #222222;
+  --accent: #ff4d4d;
 }
 
 body {
@@ -51,29 +52,53 @@ body.light {
   position: relative;
   width: 320px;
   height: 320px;
-  margin: 24px auto;
+  margin: 28px auto 20px;
 }
 
+/* Downward Pointer (PREMIUM) */
 #pointer {
   position: absolute;
-  top: -6px;
+  top: -10px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 14px solid transparent;
-  border-right: 14px solid transparent;
-  border-bottom: 24px solid currentColor;
-  z-index: 5;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-top: 30px solid var(--accent);
+  filter: drop-shadow(0 0 6px rgba(255,77,77,0.7));
+  z-index: 10;
 }
 
+/* Wheel SVG */
 #wheelSVG {
   width: 100%;
   height: 100%;
   transition: transform 4s cubic-bezier(.25,.8,.25,1);
+  border-radius: 50%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
 }
 
-/* Input + Button (same width) */
+/* Center Hub */
+#hub {
+  position: absolute;
+  inset: 50%;
+  width: 22px;
+  height: 22px;
+  background: #fff;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+}
+
+/* Form */
+label {
+  display: block;
+  text-align: left;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
 input, button.spin {
   width: 100%;
   padding: 14px;
@@ -89,14 +114,14 @@ input {
 
 button.spin {
   font-size: 18px;
-  background: #ff4d4d;
+  background: var(--accent);
   color: white;
   cursor: pointer;
 }
 
 #result {
   margin-top: 16px;
-  font-weight: 600;
+  font-weight: 700;
 }
 </style>
 </head>
@@ -110,9 +135,11 @@ button.spin {
   <div id="wheelWrap">
     <div id="pointer"></div>
     <svg id="wheelSVG" viewBox="0 0 500 500"></svg>
+    <div id="hub"></div>
   </div>
 
-  <input id="nameInput" placeholder="Name required to spin" />
+  <label for="nameInput">Your Name</label>
+  <input id="nameInput" placeholder="Required to spin" />
   <button class="spin" onclick="spinWheel()">Spin the Wheel</button>
 
   <div id="result"></div>
@@ -141,7 +168,7 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function clickSound() {
   const o = audioCtx.createOscillator();
   const g = audioCtx.createGain();
-  o.frequency.value = 800;
+  o.frequency.value = 900;
   g.gain.value = 0.08;
   o.connect(g).connect(audioCtx.destination);
   o.start();
@@ -153,7 +180,7 @@ function startTick() {
   tickTimer = setInterval(() => {
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
-    o.frequency.value = 450;
+    o.frequency.value = 480;
     g.gain.value = 0.05;
     o.connect(g).connect(audioCtx.destination);
     o.start();
@@ -169,7 +196,7 @@ function winSound() {
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.type = "triangle";
-    o.frequency.value = 600 + i * 250;
+    o.frequency.value = 600 + i * 300;
     g.gain.value = 0.12;
     o.connect(g).connect(audioCtx.destination);
     o.start(audioCtx.currentTime + i * 0.08);
@@ -271,31 +298,34 @@ function drawWheel() {
 }
 
 /* =========================
-   SPIN + LOG
+   SPIN + CORRECT MATH
 ========================= */
 function spinWheel() {
   const name = nameInput.value.trim();
-  if (!name) return alert("Name is required to spin");
+  if (!name) return alert("Your name is required");
 
   audioCtx.resume();
   clickSound();
   startTick();
 
-  const spins = Math.random()*360 + 1800;
+  const spins = Math.random() * 360 + 1800;
   rotation += spins;
   wheelSVG.style.transform = `rotate(${rotation}deg)`;
 
   const sliceDeg = 360 / prizes.length;
-  const index = Math.floor(
-    ((360 - (rotation % 360)) % 360) / sliceDeg
-  );
 
   setTimeout(() => {
     stopTick();
     winSound();
     confetti();
 
+    // 🎯 POINTER IS DOWNWARD (0°), SVG 0° is right → offset +90°
+    const normalized =
+      (360 - ((rotation + 90) % 360) + 360) % 360;
+
+    const index = Math.floor(normalized / sliceDeg);
     const prize = prizes[index];
+
     result.textContent = `${name} won ${prize} 🎉`;
     logResult(name, prize);
   }, 4000);
