@@ -238,11 +238,9 @@ function resetSpinLimit(){
 }
 
 /* ===== SECRET RESET (Ctrl + Shift + A + D) ===== */
-document.addEventListener("keydown", e=>{
-  if(e.ctrlKey && e.shiftKey && e.code==="KeyA"){
-    document.addEventListener("keydown", e2=>{
-      if(e2.code==="KeyD"){ resetSpinLimit(); }
-    },{once:true});
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.shiftKey && e.code === "KeyX") {
+    resetSpinLimit();
   }
 });
 
